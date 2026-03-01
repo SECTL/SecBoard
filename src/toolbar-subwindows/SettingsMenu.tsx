@@ -73,7 +73,7 @@ export function SettingsMenu(props: { kind: string }) {
           <div className="subwindowList">
             <div className="subwindowRow">
               <span>应用</span>
-              <span className="subwindowMeta">LanStartWrite</span>
+              <span className="subwindowMeta">SecBoard</span>
             </div>
             <div className="subwindowRow">
               <span>外观</span>

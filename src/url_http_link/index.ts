@@ -2,7 +2,7 @@ import type { App } from 'electron'
 import { resolve } from 'node:path'
 
 /**
- * LanStartWrite URL 鍛戒护锛堜緵鍏朵粬搴旂敤閫氳繃鑷畾涔夊崗璁皟鐢ㄦ湰搴旂敤鍔熻兘锛?
+ * SecBoard URL 鍛戒护锛堜緵鍏朵粬搴旂敤閫氳繃鑷畾涔夊崗璁皟鐢ㄦ湰搴旂敤鍔熻兘锛?
  *
  * **涓ょ写法（等价）**
  * - 方式 A：`lanstartwrite://app/setTool?tool=pen`

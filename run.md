@@ -1,4 +1,4 @@
-# LanStartWrite 运行指南
+# SecBoard 运行指南
 
 ## 环境要求
 

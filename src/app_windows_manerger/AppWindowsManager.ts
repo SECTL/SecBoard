@@ -11,11 +11,11 @@ const WINDOW_ID_BY_KIND: Record<AppManagedWindowKind, string> = {
 
 function resolveAppIconPath(): string | undefined {
   const candidates = [
-    join(process.resourcesPath, 'iconpack', 'LanStartWrite.png'),
-    join(process.resourcesPath, 'LanStartWrite.png'),
-    join(__dirname, '../../iconpack/LanStartWrite.png'),
-    join(app.getAppPath(), 'iconpack', 'LanStartWrite.png'),
-    join(process.cwd(), 'iconpack', 'LanStartWrite.png'),
+    join(process.resourcesPath, 'iconpack', 'SecBoard.png'),
+    join(process.resourcesPath, 'SecBoard.png'),
+    join(__dirname, '../../iconpack/SecBoard.png'),
+    join(app.getAppPath(), 'iconpack', 'SecBoard.png'),
+    join(process.cwd(), 'iconpack', 'SecBoard.png'),
   ]
   for (const p of candidates) {
     try {

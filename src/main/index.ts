@@ -49,10 +49,10 @@ let stopToolbarTopmostPolling: (() => void) | undefined
 
 function resolveAppIconPath(): string | undefined {
   const candidates = [
-    join(process.resourcesPath, 'iconpack', 'LanStartWrite.png'),
-    join(process.resourcesPath, 'LanStartWrite.png'),
-    join(__dirname, '../../iconpack/LanStartWrite.png'),
-    join(process.cwd(), 'iconpack', 'LanStartWrite.png'),
+    join(process.resourcesPath, 'iconpack', 'SecBoard.png'),
+    join(process.resourcesPath, 'SecBoard.png'),
+    join(__dirname, '../../iconpack/SecBoard.png'),
+    join(process.cwd(), 'iconpack', 'SecBoard.png'),
   ]
   for (const p of candidates) {
     try {
@@ -2293,7 +2293,7 @@ function handleBackendControlMessage(message: any): void {
             undefined
           const now = new Date().toISOString().replace(/[:.]/g, '-')
           const options = {
-            defaultPath: `LanStartWrite-${now}.cunox`,
+            defaultPath: `SecBoard-${now}.cunox`,
             filters: [
               { name: 'CUNOX', extensions: ['cunox'] },
               { name: 'Zip', extensions: ['zip'] },

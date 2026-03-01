@@ -1684,9 +1684,9 @@ function AboutSettings() {
       
       <div className="settingsAboutCard">
         <div className="settingsAboutLogo">
-          <img src={LanStartLogoSvg} width={64} height={64} alt="LanStartWrite" />
+          <img src={LanStartLogoSvg} width={64} height={64} alt="SecBoard" />
         </div>
-        <h3 className="settingsAboutAppName">LanStartWrite</h3>
+        <h3 className="settingsAboutAppName">SecBoard</h3>
         <p className="settingsAboutVersion">
           版本 {__APP_VERSION__} · 代号 {__APP_CODENAME__}
         </p>

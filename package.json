@@ -1,10 +1,10 @@
 {
-  "name": "lanstart-write",
-  "description": "LanStartWrite",
+  "name": "secboard",
+  "description": "SecBoard",
   "author": "LanStart",
   "private": true,
   "version": "1.0.0",
-  "lanstartCodename": "Doctor",
+  "lanstartCodename": "Viweivi",
   "main": "out/main/index.js",
   "scripts": {
     "dev": "bun run dev:all",

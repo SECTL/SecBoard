@@ -1645,7 +1645,7 @@ const api = new Elysia()
           if (!baseDir) throw new Error('BAD_DIR')
           outFile = join(
             baseDir,
-            (safeName || `LanStartWrite-${new Date().toISOString().replace(/[:.]/g, '-')}`).replace(/\.cunox$/i, '') + '.cunox'
+            (safeName || `SecBoard-${new Date().toISOString().replace(/[:.]/g, '-')}`).replace(/\.cunox$/i, '') + '.cunox'
           )
         }
         const outLower = outFile.toLowerCase()
@@ -1799,7 +1799,7 @@ const senderHtml = `<!doctype html>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>LanStartWrite 手机投屏</title>
+    <title>SecBoard 手机投屏</title>
     <style>
       :root { color-scheme: dark; }
       body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; background: #0b0b0f; color: rgba(255,255,255,.92); }
