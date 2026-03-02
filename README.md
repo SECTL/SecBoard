@@ -46,11 +46,7 @@ SecBoard 是一款基于 Web 技术构建的白板与视频展台应用，专为
 
 请参阅 [运行指南](./run.md) 了解如何安装和运行项目。
 
-## 项目引用
 
-本项目灵感来源于：
-
-- [智绘教 Inkeys](https://github.com/Alan-CRL/Inkeys) (GPL-3.0)
 
 ## 开源许可
 
