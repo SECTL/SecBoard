@@ -558,13 +558,13 @@ function FloatingToolbarInner() {
         <Button
           key="whiteboard"
           size={uiButtonSize}
-          variant={whiteboardActive ? 'light' : 'default'}
+          variant="light"
           ariaLabel={ariaLabel}
           title={ariaLabel}
           showInToolbar={visibility.showInToolbar}
           showInFeaturePanel={visibility.showInFeaturePanel}
           onClick={() => {
-            setAppMode(whiteboardActive ? 'toolbar' : 'whiteboard')
+            // 白板模式始终激活，无法退出
           }}
         >
           {withButtonHint(<ToolbarToolIcon kind="whiteboard" />, ariaLabel)}

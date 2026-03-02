@@ -480,7 +480,7 @@ export function useAppAppearance() {
 }
 
 export function useAppMode() {
-  const [appMode, setAppModeState] = usePersistedState<AppMode>(APP_MODE_KV_KEY, 'toolbar', {
+  const [appMode, setAppModeState] = usePersistedState<AppMode>(APP_MODE_KV_KEY, 'whiteboard', {
     validate: isAppMode
   })
   const bus = useUiStateBus(UI_STATE_APP_WINDOW_ID)
