@@ -7,6 +7,7 @@ import { MultiPageControlHandleWindow, MultiPageControlWindow, PageThumbnailsMen
 import { useHyperGlassRealtimeBlur } from '../../hyper_glass'
 import { VideoShowBackgroundApp } from '../../video_show'
 import { WebSettingsPage } from './WebSettingsPage'
+import { NotificationSubwindow } from '../../toolbar_notice/NotificationSubwindow'
 import {
   UI_STATE_APP_WINDOW_ID,
   WEB_ACTIVE_SUBWINDOW_UI_STATE_KEY,
@@ -14,6 +15,7 @@ import {
   WEB_SETTINGS_VISIBLE_UI_STATE_KEY,
   WEB_SUBWINDOW_PLACEMENT_UI_STATE_KEY,
   VIDEO_SHOW_MERGE_LAYERS_UI_STATE_KEY,
+  NOTICE_KIND_UI_STATE_KEY,
   postCommand,
   useAppMode,
   useUiStateBus
@@ -225,6 +227,10 @@ function WebWorkspace() {
   const videoMergeLayersRaw = bus.state[VIDEO_SHOW_MERGE_LAYERS_UI_STATE_KEY]
   const videoMergeLayers = typeof videoMergeLayersRaw === 'boolean' ? videoMergeLayersRaw : true
 
+  // 通知状态
+  const noticeKindRaw = bus.state[NOTICE_KIND_UI_STATE_KEY]
+  const noticeKind = typeof noticeKindRaw === 'string' ? noticeKindRaw : ''
+
   useLayoutEffect(() => {
     if (!activeSubwindow) return
     const node = subwindowRef.current
@@ -394,6 +400,13 @@ function WebWorkspace() {
           <section ref={thumbnailsRef} className="webThumbnailsAnchor" style={thumbnailsStyle}>
             <PageThumbnailsMenuWindow />
           </section>
+        ) : null}
+
+        {/* 通知浮动层 */}
+        {noticeKind ? (
+          <div className="webNoticeLayer">
+            <NotificationSubwindow kind="notice" />
+          </div>
         ) : null}
       </div>
     </div>

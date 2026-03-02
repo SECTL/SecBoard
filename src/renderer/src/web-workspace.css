@@ -108,6 +108,14 @@
   z-index: 27;
 }
 
+.webNoticeLayer {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 30;
+  pointer-events: auto;
+}
+
 @media (max-width: 860px) {
   .webToolbarDock {
     left: 8px;

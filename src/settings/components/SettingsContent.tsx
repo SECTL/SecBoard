@@ -1706,7 +1706,7 @@ function AboutSettings() {
       <div className="settingsAboutCredits">
         <h4 className="settingsAboutCreditsTitle">技术栈</h4>
         <div className="settingsAboutCreditsList">
-          <span className="settingsAboutCredit">Electron</span>
+          <span className="settingsAboutCredit">Vite</span>
           <span className="settingsAboutCredit">React</span>
           <span className="settingsAboutCredit">TypeScript</span>
           <span className="settingsAboutCredit">Framer Motion</span>

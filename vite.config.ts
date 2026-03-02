@@ -10,12 +10,14 @@ const rootDir = dirname(fileURLToPath(import.meta.url))
 const rendererRoot = resolve(rootDir, 'src/renderer')
 const pkg = JSON.parse(readFileSync(resolve(rootDir, 'package.json'), 'utf-8')) as { version?: unknown; lanstartCodename?: unknown }
 
+const BACKEND_PORT = Number(process.env.BACKEND_PORT ?? 3131)
+
 export default defineConfig({
   root: rendererRoot,
   plugins: [react()],
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version ?? '0.0.0'),
-    __APP_CODENAME__: JSON.stringify(typeof pkg.lanstartCodename === 'string' ? pkg.lanstartCodename : 'Doctor')
+    __APP_CODENAME__: JSON.stringify(typeof pkg.lanstartCodename === 'string' ? pkg.lanstartCodename : 'Viweivi')
   },
   css: {
     postcss: {
@@ -25,6 +27,44 @@ export default defineConfig({
   server: {
     fs: {
       allow: [resolve(rootDir, 'src')]
+    },
+    proxy: {
+      '/rpc': {
+        target: `http://127.0.0.1:${BACKEND_PORT}`,
+        changeOrigin: true
+      },
+      '/events': {
+        target: `http://127.0.0.1:${BACKEND_PORT}`,
+        changeOrigin: true
+      },
+      '/kv': {
+        target: `http://127.0.0.1:${BACKEND_PORT}`,
+        changeOrigin: true
+      },
+      '/ui': {
+        target: `http://127.0.0.1:${BACKEND_PORT}`,
+        changeOrigin: true
+      },
+      '/dialog': {
+        target: `http://127.0.0.1:${BACKEND_PORT}`,
+        changeOrigin: true
+      },
+      '/img': {
+        target: `http://127.0.0.1:${BACKEND_PORT}`,
+        changeOrigin: true
+      },
+      '/cunox': {
+        target: `http://127.0.0.1:${BACKEND_PORT}`,
+        changeOrigin: true
+      },
+      '/webrtc': {
+        target: `http://127.0.0.1:${BACKEND_PORT}`,
+        changeOrigin: true
+      },
+      '/health': {
+        target: `http://127.0.0.1:${BACKEND_PORT}`,
+        changeOrigin: true
+      }
     }
   },
   build: {

@@ -12,7 +12,7 @@ export function useZoomOnWheel() {
         const delta = e.deltaY > 0 ? -0.5 : 0.5
         
         // 限制缩放范围，防止过大或过小导致界面不可用
-        // Electron 默认缩放是 0 (100%)
+        // 默认缩放是 0 (100%)
         // 范围 -3 (约 50%) 到 5 (约 300%+) 应该足够
         const nextZoom = Math.min(Math.max(currentZoom + delta, -3), 5)
         

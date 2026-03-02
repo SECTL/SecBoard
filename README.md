@@ -1,104 +1,57 @@
 # SecBoard
 
-基于 **electron-vite + Electron + React + TypeScript** 的桌面端应用项目，包含浮动工具栏、批注/画板、设置窗口、视频展台等模块。
+<div align="center">
 
-项目大量采用了vibe coding
+**现代化的网页白板与视频展台应用**
 
-## 环境要求
+[![License](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](./LICENSE)
+[![Node](https://img.shields.io/badge/node-18%2B-green.svg)](https://nodejs.org)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue.svg)](https://www.typescriptlang.org/)
 
-- Node.js 18+（推荐 LTS）
-- pnpm（项目默认包管理器）
-- Windows 10/11（项目主要运行环境）
+</div>
+
+---
+
+## 简介
+
+SecBoard 是一款基于 Web 技术构建的白板与视频展台应用，专为教学、演示和协作场景设计。项目采用现代化的技术栈，提供流畅的绘图体验和丰富的功能。
+
+### 核心功能
+
+- **白板绘图** - 支持自由绘制、图形绘制等多种绘图工具
+- **视频展台** - 实时视频展示与标注功能
+- **浮动工具栏** - 灵活可拖动的工具栏设计
+- **本地存储** - 基于 LevelDB 的数据持久化
+
+## 技术栈
+
+| 类别 | 技术 |
+|------|------|
+| 前端框架 | React 18 + TypeScript |
+| 构建工具 | Vite 6 |
+| UI 框架 | Tailwind CSS + Mantine |
+| 后端服务 | Elysia |
+| 绘图引擎 | Leafer UI + Perfect Freehand |
+| 动画库 | Framer Motion |
+| 数据存储 | LevelDB |
+
+## 项目特色
+
+- **高性能绘图** - 基于 Leafer UI 的高性能 Canvas 渲染
+- **流畅的手写体验** - 使用 Perfect Freehand 实现自然的手写效果
+- **现代化架构** - 前后端分离，TypeScript 全栈类型安全
+- **响应式设计** - 适配不同屏幕尺寸
 
 ## 快速开始
 
-安装依赖：
-
-```bash
-pnpm install
-```
-
-开发模式启动（Electron + Renderer Dev Server）：
-
-```bash
-pnpm dev
-```
-
-构建：
-
-```bash
-pnpm build
-```
-
-预览构建产物：
-
-```bash
-pnpm preview
-```
-
-## 常用命令
-
-项目脚本定义在 [package.json](./package.json)：
-
-| 命令 | 说明 |
-| --- | --- |
-| `pnpm dev` | 启动开发模式 |
-| `pnpm build` | 构建生产版本 |
-| `pnpm preview` | 预览生产版本 |
-| `pnpm test` | 运行测试（vitest run） |
-| `pnpm typecheck` | TypeScript 类型检查 |
-| `pnpm release` | 发布流程（release-it） |
-
-## 开发者工具
-
-需要启动时自动打开 DevTools，可设置环境变量：
-
-```powershell
-$env:LANSTART_OPEN_DEVTOOLS="1"
-pnpm dev
-```
-
-## 目录结构（简版）
-
-```
-src/
-  main/                 Electron 主进程
-  preload/              预加载脚本
-  renderer/             渲染进程（React）
-  toolbar/              浮动工具栏
-  toolbar-subwindows/   工具栏子窗口
-  settings/             设置窗口与配置 UI
-  annotation_writing/   批注/书写相关
-  paint_board/          画板
-  video_show/           视频展台相关
-  elysia/               后端服务（Elysia）
-  LeavelDB/             本地数据存储（LevelDB）
-```
-
-## 常见问题
-
-### 1) `'electron-vite' 不是内部或外部命令`
-
-通常是依赖未安装或 `node_modules` 缺失导致。先执行：
-
-```bash
-pnpm install
-pnpm dev
-```
-
-### 2) `failed to load config ... config must export or return an object`
-
-说明 `electron.vite.config.ts` 未正确默认导出配置对象。请确认该文件存在并包含 `export default defineConfig(...)`。
-
-## 更多说明
-
-更完整的运行指南请看 [run.md](./run.md)。
+请参阅 [运行指南](./run.md) 了解如何安装和运行项目。
 
 ## 项目引用
 
-- 智绘教 Inkeys（GPL-3.0）：https://github.com/Alan-CRL/Inkeys
+本项目灵感来源于：
+
+- [智绘教 Inkeys](https://github.com/Alan-CRL/Inkeys) (GPL-3.0)
 
 ## 开源许可
 
 本项目以 GPL-3.0 许可证开源发布，详见 [LICENSE](./LICENSE)。
-

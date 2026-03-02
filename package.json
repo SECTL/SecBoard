@@ -1,11 +1,10 @@
 {
   "name": "secboard",
-  "description": "SecBoard",
+  "description": "SecBoard - 网页白板与视频展台",
   "author": "LanStart",
   "private": true,
   "version": "1.0.0",
   "lanstartCodename": "Viweivi",
-  "main": "out/main/index.js",
   "scripts": {
     "dev": "bun run dev:all",
     "dev:all": "bunx --package concurrently concurrently -k -n backend,web \"bun run dev:backend\" \"bun run dev:web\"",
@@ -46,8 +45,6 @@
     "@vitejs/plugin-react": "^4.3.4",
     "autoprefixer": "^10.4.24",
     "concurrently": "^9.2.1",
-    "electron": "^35.0.0",
-    "electron-builder": "^26.7.0",
     "jsdom": "^25.0.1",
     "postcss": "^8.5.6",
     "release-it": "^19.2.4",
@@ -56,11 +53,5 @@
     "typescript": "^5.7.3",
     "vite": "^6.1.0",
     "vitest": "^2.1.9"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "electron",
-      "esbuild"
-    ]
   }
 }

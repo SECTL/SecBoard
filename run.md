@@ -1,164 +1,223 @@
-# SecBoard 运行指南
+# 运行指南
+
+本文档详细介绍如何在本地开发、构建和部署 SecBoard 项目。
+
+## 目录
+
+- [环境要求](#环境要求)
+- [快速开始](#快速开始)
+- [开发模式](#开发模式)
+- [构建与部署](#构建与部署)
+- [环境变量配置](#环境变量配置)
+- [项目结构](#项目结构)
+- [常用命令](#常用命令)
+- [开发提示](#开发提示)
 
 ## 环境要求
 
-- **Node.js**: 18.x 或更高版本
-- **包管理器**: pnpm (推荐) 或 npm
-- **操作系统**: Windows 10/11 (支持 Mica 材质效果)
+| 依赖 | 版本要求 | 说明 |
+|------|----------|------|
+| Node.js | >= 18 | 推荐 LTS 版本 |
+| pnpm 或 bun | 最新版 | 项目默认使用 bun |
 
-## 安装依赖
+推荐使用 [bun](https://bun.sh/) 作为包管理器和运行时，以获得更快的依赖安装和脚本执行速度。
 
-### 使用 pnpm (推荐)
+## 快速开始
+
+### 1. 克隆项目
+
+```bash
+git clone https://github.com/your-username/SecBoard.git
+cd SecBoard
+```
+
+### 2. 安装依赖
+
+使用 bun（推荐）：
+
+```bash
+bun install
+```
+
+或使用 pnpm：
 
 ```bash
 pnpm install
 ```
 
-### 使用 npm
+### 3. 启动开发服务器
 
 ```bash
-npm install
-```
-
-## 开发模式运行
-
-### 启动开发服务器
-
-```bash
-pnpm dev
+bun dev
 # 或
-npm run dev
-```
-
-### 打开开发者工具
-
-设置环境变量后启动：
-
-```powershell
-$env:LANSTART_OPEN_DEVTOOLS="1"
 pnpm dev
 ```
 
-## 构建生产版本
+启动后访问 http://localhost:5173 即可查看应用。
 
-### 完整构建
+## 开发模式
+
+### 完整开发环境
+
+同时启动前端和后端服务：
 
 ```bash
-pnpm build
-# 或
-npm run build
+bun dev
 ```
 
-### 预览生产版本
+此命令会并行启动：
+- **前端开发服务器** (Vite) - 默认端口 5173
+- **后端 API 服务** (Elysia) - 默认端口 3131
+
+### 单独启动服务
+
+仅启动前端：
 
 ```bash
-pnpm preview
-# 或
-npm run preview
+bun dev:web
 ```
 
-## 测试
-
-### 运行所有测试
+仅启动后端：
 
 ```bash
-pnpm test
-# 或
-npm run test
+bun dev:backend
 ```
 
-### 测试文件位置
+### 端口说明
 
-- `src/button/__tests__/Button.test.tsx`
-- `src/hyper_glass/__tests__/thumbnailBlur.test.ts`
-- `src/toolbar/__tests__/FloatingToolbar.test.tsx`
+| 服务 | 默认端口 | 环境变量 |
+|------|----------|----------|
+| 前端开发服务器 | 5173 | Vite 默认配置 |
+| 后端 API 服务 | 3131 | `LANSTART_BACKEND_PORT` |
+| 投屏服务 | 3132 | `LANSTART_CAST_PORT` |
 
-## 类型检查
+## 构建与部署
+
+### 构建生产版本
 
 ```bash
-pnpm typecheck
-# 或
-npm run typecheck
+bun build
 ```
 
-## 发布
+构建产物将输出到 `dist/web` 目录。
 
-### 创建发布版本
+### 构建后端代码
 
 ```bash
-pnpm release
-# 或
-npm run release
+bun build:backend
+```
+
+### 预览构建产物
+
+```bash
+bun preview
+```
+
+## 环境变量配置
+
+项目支持以下环境变量配置：
+
+### 后端服务配置
+
+| 变量名 | 默认值 | 说明 |
+|--------|--------|------|
+| `LANSTART_BACKEND_PORT` | 3131 | 后端服务端口 |
+| `LANSTART_BACKEND_HOST` | 127.0.0.1 | 后端服务监听地址 |
+| `LANSTART_DB_PATH` | ./lanstart.sqlite | 数据库文件路径 |
+| `LANSTART_BACKEND_TRANSPORT` | http | 通信方式 (http/stdio) |
+| `LANSTART_CAST_PORT` | 3132 | 投屏服务端口 |
+| `LANSTART_CAST_HOST` | 0.0.0.0 | 投屏服务监听地址 |
+| `LANSTART_CS_BASE_URL` | - | CS 服务基础 URL |
+
+### 使用方式
+
+创建 `.env` 文件或在命令行中指定：
+
+```bash
+LANSTART_BACKEND_PORT=3131 bun dev:backend
 ```
 
 ## 项目结构
 
 ```
-lanstart-write/
+SecBoard/
 ├── src/
-│   ├── main/              # Electron 主进程
-│   ├── preload/           # 预加载脚本
-│   ├── renderer/          # 渲染进程 (React)
-│   ├── elysia/            # 后端服务
-│   ├── toolbar/           # 浮动工具栏
-│   ├── toolbar-subwindows/# 工具栏子窗口
-│   ├── settings/          # 设置页面
-│   ├── paint_board/       # 画板
-│   ├── button/            # 按钮组件
-│   ├── Mantine/           # Mantine UI 配置
-│   ├── Tailwind/          # Tailwind CSS 配置
-│   ├── Framer_Motion/     # 动画库
-│   ├── hyper_glass/       # 毛玻璃效果
-│   ├── LeavelDB/          # 数据库
-│   └── status/            # 状态管理
-├── out/                   # 构建输出
-├── resources/             # 静态资源
-└── electron-builder.yml   # 打包配置
+│   ├── renderer/              # 前端应用入口 (React)
+│   ├── elysia/                # 后端服务 (Elysia API)
+│   ├── paint_board/           # 白板组件
+│   ├── video_show/            # 视频展台组件
+│   ├── toolbar/               # 浮动工具栏
+│   ├── toolbar-subwindows/    # 工具栏子窗口
+│   ├── settings/              # 设置页面
+│   ├── LeavelDB/              # LevelDB 数据存储
+│   ├── status/                # 状态管理
+│   ├── annotation_writing/    # 批注书写模块
+│   ├── CUNOX/                 # CUNOX 导入导出
+│   ├── LanStartBar/           # LanStart 工具栏
+│   ├── Mantine/               # Mantine UI 配置
+│   ├── Tailwind/              # Tailwind CSS 配置
+│   └── Framer_Motion/         # Framer Motion 动画
+├── dist/
+│   └── web/                   # 构建输出目录
+├── vite.config.ts             # Vite 配置
+├── tsconfig.json              # TypeScript 配置
+└── package.json               # 项目配置
 ```
 
-## 常用命令速查
+## 常用命令
 
 | 命令 | 说明 |
 |------|------|
-| `pnpm dev` | 启动开发模式 |
-| `pnpm build` | 构建生产版本 |
-| `pnpm preview` | 预览生产版本 |
-| `pnpm test` | 运行测试 |
-| `pnpm typecheck` | 类型检查 |
-| `pnpm release` | 创建发布 |
+| `bun dev` | 启动完整开发环境 |
+| `bun dev:web` | 仅启动前端开发服务器 |
+| `bun dev:backend` | 仅启动后端服务 |
+| `bun build` | 构建前端生产版本 |
+| `bun build:backend` | 构建后端代码 |
+| `bun preview` | 预览构建产物 |
+| `bun test` | 运行测试 |
+| `bun typecheck` | TypeScript 类型检查 |
+| `bun release` | 发布新版本 |
 
-## 常见问题
+## 开发提示
 
-### 安装依赖失败
+### API 代理配置
 
-如果遇到原生模块编译失败，尝试：
+开发模式下，前端通过 Vite 代理转发 API 请求到后端。代理配置位于 `vite.config.ts`：
 
-```bash
-# 清理缓存
-pnpm store prune
-
-# 重新安装
-pnpm install
+```typescript
+server: {
+  proxy: {
+    '/rpc': { target: 'http://127.0.0.1:3131' },
+    '/events': { target: 'http://127.0.0.1:3131' },
+    '/kv': { target: 'http://127.0.0.1:3131' },
+    // ... 更多代理配置
+  }
+}
 ```
 
-### 开发服务器启动慢
+### 数据存储
 
-首次启动需要编译 Electron 和原生模块，请耐心等待。后续启动会更快。
+项目使用 LevelDB 作为本地数据存储，数据文件默认保存在 `lanstart.sqlite`。
 
-### Windows 上 Mica 效果不显示
+### 热重载
 
-确保：
-- Windows 版本 >= 10 2004
-- 已启用透明效果 (设置 > 个性化 > 颜色 > 透明效果)
+- 前端：Vite 提供模块热替换 (HMR)
+- 后端：使用 `bun --watch` 实现文件变更自动重启
 
-## 技术栈
+### 类型检查
 
-- **Electron**: 35.x
-- **React**: 18.x
-- **TypeScript**: 5.x
-- **Vite**: 6.x
-- **Elysia**: 1.x
-- **Framer Motion**: 12.x
-- **Mantine**: 8.x
-- **Tailwind CSS**: 3.x
-- **LevelDB**: 10.x
+建议在提交代码前运行类型检查：
+
+```bash
+bun typecheck
+```
+
+### 测试
+
+运行测试套件：
+
+```bash
+bun test
+```
+
+测试使用 Vitest 框架，配置文件位于项目根目录。
