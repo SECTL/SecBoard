@@ -1,3 +1,4 @@
+import { Play20Filled, Pause20Filled, ArrowCounterclockwise20Filled } from '@fluentui/react-icons'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from '../Framer_Motion'
 import { cn } from '../Tailwind'
@@ -22,36 +23,15 @@ import './styles/subwindow.css'
 const CLOCK_MENU_BOUNDS = { width: 420, height: 320 } as const
 
 function PlayIcon() {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20">
-      <path
-        fill="currentColor"
-        d="M17.22 8.687a1.498 1.498 0 0 1 0 2.626l-9.997 5.499A1.5 1.5 0 0 1 5 15.499V4.501a1.5 1.5 0 0 1 2.223-1.313zm-.482 1.75a.5.5 0 0 0 0-.875L6.741 4.063A.5.5 0 0 0 6 4.501v10.998a.5.5 0 0 0 .741.438z"
-      />
-    </svg>
-  )
+  return <Play20Filled />
 }
 
 function PauseIcon() {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20">
-      <path
-        fill="currentColor"
-        d="M5 2a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2zM4 4a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1zm9-2a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2zm-1 2a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1z"
-      />
-    </svg>
-  )
+  return <Pause20Filled />
 }
 
 function ResetIcon() {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20">
-      <path
-        fill="currentColor"
-        d="M16 10A6 6 0 0 0 5.528 6H7.5a.5.5 0 0 1 0 1h-3a.5.5 0 0 1-.5-.5v-3a.5.5 0 0 1 1 0v1.601a7 7 0 1 1-1.98 4.361a.5.5 0 0 1 .998.076A6 6 0 1 0 16 10"
-      />
-    </svg>
-  )
+  return <ArrowCounterclockwise20Filled />
 }
 
 function pad2(v: number): string {

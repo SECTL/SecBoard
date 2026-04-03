@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ensureWebLanstartAdapter } from './webLanstartAdapter'
 import {
   APP_MODE_KV_KEY,
@@ -562,5 +562,3 @@ export function useAppMode() {
 
   return { appMode, setAppMode }
 }
-
-

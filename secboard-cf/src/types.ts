@@ -21,20 +21,6 @@ export interface EventRow {
   ts: number
 }
 
-export interface CunoxFileRow {
-  path: string
-  content_type: string
-  size: number
-  created_at: number
-  updated_at: number
-}
-
-export interface ApiResponse<T = unknown> {
-  ok: boolean
-  error?: string
-  value?: T
-}
-
 export interface EventItem {
   id: number
   type: string
@@ -45,4 +31,10 @@ export interface EventItem {
 export interface EventsResponse {
   items: EventItem[]
   latest: number
+}
+
+export interface ApiResponse<T = unknown> {
+  ok: boolean
+  error?: string
+  value?: T
 }

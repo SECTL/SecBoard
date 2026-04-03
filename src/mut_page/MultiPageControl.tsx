@@ -1,4 +1,5 @@
-﻿import React, { useEffect, useMemo, useRef } from 'react'
+﻿import { Add20Filled, Camera20Filled, ChevronLeft20Filled, ChevronRight20Filled } from '@fluentui/react-icons'
+import React, { useEffect, useMemo, useRef } from 'react'
 import {
   APP_MODE_UI_STATE_KEY,
   NOTES_PAGE_INDEX_UI_STATE_KEY,
@@ -14,38 +15,19 @@ import { useZoomOnWheel } from '../toolbar/hooks/useZoomOnWheel'
 import '../toolbar/styles/toolbar.css'
 
 function AddIcon() {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20">
-      <path fill="currentColor" d="M10 3.5a.5.5 0 0 1 .5.5v5.5H16a.5.5 0 0 1 0 1h-5.5V16a.5.5 0 0 1-1 0v-5.5H4a.5.5 0 0 1 0-1h5.5V4a.5.5 0 0 1 .5-.5" />
-    </svg>
-  )
+  return <Add20Filled />
 }
 
 function CaptureIcon() {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20">
-      <path
-        fill="currentColor"
-        d="M10 4.25a5.75 5.75 0 1 0 0 11.5a5.75 5.75 0 0 0 0-11.5m0 1.5a4.25 4.25 0 1 1 0 8.5a4.25 4.25 0 0 1 0-8.5"
-      />
-    </svg>
-  )
+  return <Camera20Filled />
 }
 
 function PrevPageIcon() {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
-      <path d="M12.5 4.75L7 10l5.5 5.25" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  )
+  return <ChevronLeft20Filled />
 }
 
 function NextPageIcon() {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
-      <path d="M7.5 4.75L13 10l-5.5 5.25" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  )
+  return <ChevronRight20Filled />
 }
 
 export function MultiPageControlWindow() {

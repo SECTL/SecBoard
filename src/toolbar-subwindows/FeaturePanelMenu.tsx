@@ -1,3 +1,10 @@
+import {
+  GridKanban20Regular,
+  Add20Regular,
+  Clock20Regular,
+  SlideText20Regular,
+  Note20Regular,
+} from '@fluentui/react-icons'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '../button'
 import { motion, useReducedMotion } from '../Framer_Motion'
@@ -20,85 +27,20 @@ import {
   DatabaseIcon,
 } from '../toolbar/components/ToolbarIcons'
 import './styles/subwindow.css'
-import notebookIconSvgRaw from '../../iconpack/flent_icon/fluent--notebook-20-regular.svg?raw'
-
-const notebookIconSvg = notebookIconSvgRaw.replace('width="20"', 'width="18"').replace('height="20"', 'height="18"')
 
 type GridIconKind = 'grid' | 'plus' | 'gear' | 'doc' | 'notebook' | 'db' | 'events' | 'clock' | 'quit'
 
 function GridIcon(props: { kind: GridIconKind }) {
-  const stroke = 'currentColor'
-  const common = { width: 18, height: 18, viewBox: '0 0 24 24', fill: 'none', stroke, strokeWidth: 1.6, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const }
-
-  if (props.kind === 'grid') {
-    return (
-      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 20 20">
-        <path fill="currentColor" d="M4.5 17a1.5 1.5 0 0 1-1.493-1.355L3 15.501v-11a1.5 1.5 0 0 1 1.356-1.493L4.5 3H9a1.5 1.5 0 0 1 1.493 1.355l.007.145v.254l2.189-2.269a1.5 1.5 0 0 1 2.007-.138l.116.101l2.757 2.725a1.5 1.5 0 0 1 .111 2.011l-.103.116l-2.311 2.2h.234a1.5 1.5 0 0 1 1.493 1.356L17 11v4.5a1.5 1.5 0 0 1-1.355 1.493L15.5 17zm5-6.5H4v5a.5.5 0 0 0 .326.47l.084.023l.09.008h5zm6 0h-5V16h5a.5.5 0 0 0 .492-.41L16 15.5V11a.5.5 0 0 0-.41-.491zm-5-2.79V9.5h1.79zM9 4H4.5a.5.5 0 0 0-.492.411L4 4.501v5h5.5v-5a.5.5 0 0 0-.326-.469L9.09 4.01zm5.122-.826a.5.5 0 0 0-.645-.053l-.068.06l-2.616 2.713a.5.5 0 0 0-.057.623l.063.078l2.616 2.615a.5.5 0 0 0 .62.07l.078-.061l2.758-2.627a.5.5 0 0 0 .054-.638l-.059-.069z"/>
-      </svg>
-    )
-  }
-
-  if (props.kind === 'plus') {
-    return (
-      <svg {...common}>
-        <path d="M12 5v14" />
-        <path d="M5 12h14" />
-      </svg>
-    )
-  }
-
-  if (props.kind === 'db') {
-    return <DatabaseIcon />
-  }
-
-  if (props.kind === 'events') {
-    return <EventsIcon />
-  }
-
-  if (props.kind === 'clock') {
-    return (
-      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 20 20">
-        <path
-          fill="currentColor"
-          d="M10 2a8 8 0 1 1 0 16a8 8 0 0 1 0-16m0 1a7 7 0 1 0 0 14a7 7 0 0 0 0-14m-.5 2a.5.5 0 0 1 .492.41L10 5.5V10h2.5a.5.5 0 0 1 .09.992L12.5 11h-3a.5.5 0 0 1-.492-.41L9 10.5v-5a.5.5 0 0 1 .5-.5"
-        />
-      </svg>
-    )
-  }
-
-  if (props.kind === 'gear') {
-    return <SettingsIcon />
-  }
-
-  if (props.kind === 'doc') {
-    return (
-      <svg {...common}>
-        <path d="M7 3h7l3 3v15H7z" />
-        <path d="M14 3v4h4" />
-        <path d="M9 11h6" />
-        <path d="M9 14h6" />
-        <path d="M9 17h4" />
-      </svg>
-    )
-  }
-
-  if (props.kind === 'notebook') {
-    return (
-      <span style={{ width: 18, height: 18, display: 'inline-flex', lineHeight: 0 }} dangerouslySetInnerHTML={{ __html: notebookIconSvg }} />
-    )
-  }
-
-  if (props.kind === 'quit') {
-    return <QuitIcon />
-  }
-
-  return (
-    <svg {...common}>
-      <path d="M5 7h14" />
-      <path d="M5 12h14" />
-      <path d="M5 17h14" />
-    </svg>
-  )
+  if (props.kind === 'grid') return <GridKanban20Regular />
+  if (props.kind === 'plus') return <Add20Regular />
+  if (props.kind === 'db') return <DatabaseIcon />
+  if (props.kind === 'events') return <EventsIcon />
+  if (props.kind === 'clock') return <Clock20Regular />
+  if (props.kind === 'gear') return <SettingsIcon />
+  if (props.kind === 'doc') return <SlideText20Regular />
+  if (props.kind === 'notebook') return <Note20Regular />
+  if (props.kind === 'quit') return <QuitIcon />
+  return <GridKanban20Regular />
 }
 
 export function FeaturePanelMenu(props: { kind: string }) {

@@ -36,3 +36,12 @@ export async function deleteKv(env: Env, key: string): Promise<void> {
 export async function deleteByPrefix(env: Env, prefix: string): Promise<void> {
   await env.DB.prepare('DELETE FROM kv WHERE key LIKE ?').bind(`${prefix}%`).run()
 }
+
+export async function getAllKv(env: Env): Promise<Record<string, unknown>> {
+  const rows = await env.DB.prepare('SELECT key, value FROM kv').all<KvRow>()
+  const result: Record<string, unknown> = {}
+  for (const row of rows.results || []) {
+    result[row.key] = JSON.parse(row.value)
+  }
+  return result
+}

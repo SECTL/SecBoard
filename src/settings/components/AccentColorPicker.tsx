@@ -1,3 +1,4 @@
+import { Checkmark12Filled } from '@fluentui/react-icons'
 import React from 'react'
 import { motion } from '../../Framer_Motion'
 import { useWallpaperMonetColors, type MonetColor } from '../../hyper_glass'
@@ -261,9 +262,7 @@ export function AccentColorPicker({ value, onChange }: AccentColorPickerProps) {
                 animate={{ scale: 1 }}
                 transition={{ type: 'spring', stiffness: 500, damping: 30 }}
               >
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="white" strokeWidth="3">
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
+                <Checkmark12Filled />
               </motion.div>
             )}
           </MotionButton>
@@ -293,9 +292,7 @@ export function AccentColorPicker({ value, onChange }: AccentColorPickerProps) {
                 animate={{ scale: 1 }}
                 transition={{ type: 'spring', stiffness: 500, damping: 30 }}
               >
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="white" strokeWidth="3">
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
+                <Checkmark12Filled />
               </motion.div>
             )}
           </MotionButton>

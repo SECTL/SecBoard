@@ -1,3 +1,4 @@
+import { Checkmark16Filled } from '@fluentui/react-icons'
 import React from 'react'
 import { motion } from '../../Framer_Motion'
 import type { Easing } from 'framer-motion'
@@ -164,9 +165,7 @@ export function TransitionSettings({
                   animate={{ scale: 1 }}
                   transition={{ type: 'spring', stiffness: 500, damping: 30 }}
                 >
-                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
+                  <Checkmark16Filled />
                 </motion.div>
               )}
             </MotionButton>
@@ -212,9 +211,7 @@ export function TransitionSettings({
                   animate={{ scale: 1 }}
                   transition={{ type: 'spring', stiffness: 500, damping: 30 }}
                 >
-                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
+                  <Checkmark16Filled />
                 </motion.div>
               )}
             </MotionButton>

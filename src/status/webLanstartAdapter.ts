@@ -1,12 +1,9 @@
 function getApiBaseUrl(): string {
-  // 在开发模式下使用 Vite 代理，生产模式下使用环境变量或默认值
   const envBase = (import.meta as any)?.env?.VITE_LANSTART_API_BASE
   if (envBase) {
     const raw = String(envBase)
     return raw.endsWith('/') ? raw.slice(0, -1) : raw
   }
-  // 开发模式下使用空字符串（通过 Vite 代理）
-  // 生产模式下需要配置完整的后端 URL
   return import.meta.env.DEV ? '' : 'http://127.0.0.1:3131'
 }
 

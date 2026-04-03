@@ -1,3 +1,4 @@
+import { History20Regular, Checkmark18Regular, Clock20Regular, ArrowSync18Regular, Dismiss18Regular } from '@fluentui/react-icons'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { motion, useReducedMotion } from '../Framer_Motion'
 import { Button } from '../button'
@@ -32,54 +33,19 @@ import {
 import '../toolbar-subwindows/styles/subwindow.css'
 
 function HistoryIcon() {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20">
-      <path
-        fill="currentColor"
-        d="M10 4a6 6 0 1 1-5.982 5.538a.5.5 0 1 0-.998-.076Q3 9.73 3 10a7 7 0 1 0 2-4.899V3.5a.5.5 0 0 0-1 0v3a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 0-1H5.528A5.98 5.98 0 0 1 10 4m0 2.5a.5.5 0 0 0-1 0v4a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 0-1H10z"
-      />
-    </svg>
-  )
+  return <History20Regular />
 }
 
 function CheckIcon() {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M20 6L9 17l-5-5" />
-    </svg>
-  )
+  return <Checkmark18Regular />
 }
 
 function ClockIcon() {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20">
-      <path
-        fill="currentColor"
-        d="M10 2a8 8 0 1 1 0 16a8 8 0 0 1 0-16m0 1a7 7 0 1 0 0 14a7 7 0 0 0 0-14m-.5 2a.5.5 0 0 1 .492.41L10 5.5V10h2.5a.5.5 0 0 1 .09.992L12.5 11h-3a.5.5 0 0 1-.492-.41L9 10.5v-5a.5.5 0 0 1 .5-.5"
-      />
-    </svg>
-  )
+  return <Clock20Regular />
 }
 
 function RestartIcon() {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21 12a9 9 0 0 1-15.55 6.36" />
-      <path d="M3 12a9 9 0 0 1 15.55-6.36" />
-      <path d="M7 17v4H3" />
-      <path d="M17 7V3h4" />
-    </svg>
-  )
+  return <ArrowSync18Regular />
 }
 
 function pad2(v: number): string {
@@ -497,20 +463,7 @@ export function NotificationSubwindow(props: { kind: 'notice' }) {
                 style={{ display: 'flex', alignItems: 'center', gap: 8, flex: '0 0 auto' }}
               >
                 <Button variant="default" size="sm" ariaLabel="关闭通知" title="关闭" onClick={close}>
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.8"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M18 6L6 18" />
-                    <path d="M6 6l12 12" />
-                  </svg>
+                  <Dismiss18Regular />
                 </Button>
                 {isBackendUnavailableNotice ? (
                   <Button

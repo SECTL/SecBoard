@@ -37,6 +37,19 @@ router.post('/rpc/post-command', async (req: IRequest, env: Env) => {
   return { ok: true }
 })
 
+router.post('/commands', async (req: IRequest, env: Env) => {
+  const body = await req.json()
+  const command = String(body.command || '')
+  if (!command) {
+    return error(400, { ok: false, error: 'BAD_COMMAND' })
+  }
+  const result = await handlePostCommand(env, command, body.payload)
+  if (!result.ok) {
+    return error(400, result)
+  }
+  return { ok: true }
+})
+
 router.get('/kv/:key', async (req: IRequest, env: Env) => {
   const key = decodeURIComponent(req.params.key || '')
   if (!key) {
@@ -89,6 +102,33 @@ router.delete('/ui/:windowId/:key', async (req: IRequest, env: Env) => {
   return await handleDeleteUiState(env, windowId, key)
 })
 
+router.get('/ui-state/:windowId', async (req: IRequest, env: Env) => {
+  const windowId = decodeURIComponent(req.params.windowId || '')
+  if (!windowId) {
+    return error(400, { ok: false, error: 'BAD_WINDOW_ID' })
+  }
+  return await handleGetUiState(env, windowId)
+})
+
+router.put('/ui-state/:windowId/:key', async (req: IRequest, env: Env) => {
+  const windowId = decodeURIComponent(req.params.windowId || '')
+  const key = decodeURIComponent(req.params.key || '')
+  if (!windowId || !key) {
+    return error(400, { ok: false, error: 'BAD_UI_STATE_KEY' })
+  }
+  const body = await req.json()
+  return await handlePutUiState(env, windowId, key, body.value)
+})
+
+router.delete('/ui-state/:windowId/:key', async (req: IRequest, env: Env) => {
+  const windowId = decodeURIComponent(req.params.windowId || '')
+  const key = decodeURIComponent(req.params.key || '')
+  if (!windowId || !key) {
+    return error(400, { ok: false, error: 'BAD_UI_STATE_KEY' })
+  }
+  return await handleDeleteUiState(env, windowId, key)
+})
+
 router.get('/cunox/:path*', async (req: IRequest, env: Env) => {
   const path = decodeURIComponent(req.params.path || '')
   return await handleGetCunoxFile(env, path)
@@ -111,6 +151,27 @@ router.put('/cunox/:path*', async (req: IRequest, env: Env) => {
 router.delete('/cunox/:path*', async (req: IRequest, env: Env) => {
   const path = decodeURIComponent(req.params.path || '')
   return await handleDeleteCunoxFile(env, path)
+})
+
+router.post('/cunox/export', async () => {
+  return { ok: false, error: 'UNSUPPORTED_IN_CF' }
+})
+
+router.post('/cunox/import', async () => {
+  return { ok: false, error: 'UNSUPPORTED_IN_CF' }
+})
+
+router.post('/img/file-to-data-url', async (req: IRequest) => {
+  const formData = await req.formData()
+  const file = formData.get('file') as File | null
+  if (!file) {
+    return error(400, { ok: false, error: 'no_file' })
+  }
+  const arrayBuffer = await file.arrayBuffer()
+  const bytes = new Uint8Array(arrayBuffer)
+  const base64 = btoa(String.fromCharCode(...bytes))
+  const dataUrl = `data:${file.type};base64,${base64}`
+  return { ok: true, dataUrl }
 })
 
 router.post('/dialog/select-image-file', async (req: IRequest, env: Env) => {
