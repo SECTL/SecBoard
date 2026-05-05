@@ -1,0 +1,23 @@
+{
+  "name": "@secboard/backend",
+  "version": "1.0.0",
+  "description": "SecBoard backend core - Elysia-based multi-platform backend",
+  "main": "index.ts",
+  "type": "module",
+  "scripts": {
+    "dev:bun": "bun run bun/index.ts",
+    "dev:node": "tsx node/index.ts",
+    "build:bun": "bun build bun/index.ts --outfile=dist/bun/server.js",
+    "build:cf": "wrangler publish",
+    "build:node": "tsc -p tsconfig.node.json"
+  },
+  "dependencies": {
+    "elysia": "^1.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3",
+    "wrangler": "^3.24.0"
+  }
+}

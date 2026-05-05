@@ -85,6 +85,47 @@ import {
 } from './keys'
 
 export {
+  type Tool,
+  type FrontendState,
+  type FrontendAction,
+  type FrontendStateContextValue,
+  type FrontendStateProviderProps,
+  FrontendStateProvider,
+  useFrontendState,
+  useFrontendStateValue,
+  useTool,
+  usePenSettings,
+  useEraserSettings,
+  useAppModeState,
+  useNotesPage,
+  useRevision,
+  useWhiteboardBackground,
+  toUiStateSnapshot,
+  fromUiStateSnapshot,
+  initialState
+} from './frontendState'
+
+export {
+  openDb,
+  getValue,
+  getValueOrUndefined,
+  putValue,
+  deleteValue,
+  deleteByPrefix,
+  getAllKeys,
+  listEntriesByPrefix,
+  listKeysByPrefix,
+  clearAll,
+  closeDb,
+  clearCache,
+  getCacheSize
+} from './indexedDbStorage'
+
+export { type EventItem, type EventPayloadMap, subscribe, emit, getEvents as getLocalEvents } from './eventBus'
+
+export { isPureFrontendMode } from './webLanstartAdapter'
+
+export {
   APP_MODE_KV_KEY,
   APP_MODE_UI_STATE_KEY,
   APPEARANCE_KV_KEY,

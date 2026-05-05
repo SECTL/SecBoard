@@ -1,4 +1,4 @@
-﻿import { Elysia, t } from 'elysia'
+import { Elysia, t } from 'elysia'
 import { createInterface } from 'node:readline'
 import { randomUUID } from 'node:crypto'
 import { readFile, stat } from 'node:fs/promises'
@@ -7,6 +7,26 @@ import { networkInterfaces } from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { deleteByPrefix, deleteValue, getValue, openLeavelDb, putValue } from '../LeavelDB'
 import { exportDbToCunoxDir, exportDbToCunoxFile, importCunoxDirToDb, importCunoxFileToDb } from '../CUNOX'
+
+/**
+ * SecBoard 后端服务
+ * 
+ * 纯前端模式说明 (LANSTART_PURE_FRONTEND=true):
+ * - 当设置 LANSTART_PURE_FRONTEND=true 时，后端进入纯前端模式
+ * - 纯前端模式下禁用的功能：
+ *   1. UI State 管理 API (/ui/*, /ui-state/*)
+ *   2. 命令处理 API (/rpc/post-command, /commands)
+ *   3. 监控数据清理和笔记会话初始化
+ * - 纯前端模式下保留的功能：
+ *   1. KV 存储 API (/kv/*) - 用于数据迁移
+ *   2. 健康检查 (/health)
+ *   3. 事件查询 (/events)
+ *   4. WebRTC 投屏服务
+ *   5. CUNOX 导入导出 (/cunox/*)
+ *   6. 对话框 API (/dialog/*)
+ *   7. 图片处理 API (/img/*)
+ *   8. CS 代理 (/cs/*)
+ */
 import {
   APPEARANCE_KV_KEY,
   APPEARANCE_UI_STATE_KEY,
@@ -66,6 +86,10 @@ const csBaseUrl = String(process.env.LANSTART_CS_BASE_URL ?? '')
 const castPort = Number(process.env.LANSTART_CAST_PORT ?? 3132)
 const castHost = String(process.env.LANSTART_CAST_HOST ?? '0.0.0.0')
 const useStdioRpc = transport !== 'http'
+
+// 纯前端模式：当 LANSTART_PURE_FRONTEND=true 时，只保留基本的静态文件服务和 KV 存储 API
+// 禁用 UI State 管理和命令处理功能
+const isPureFrontend = String(process.env.LANSTART_PURE_FRONTEND ?? '').toLowerCase() === 'true'
 
 const db = openLeavelDb(dbPath)
 
@@ -492,6 +516,11 @@ async function getPersistedWritingFramework(): Promise<WritingFramework | undefi
 
 
 async function handleCommand(command: string, payload: unknown): Promise<CommandResult> {
+  // 纯前端模式下禁用命令处理
+  if (isPureFrontend) {
+    return { ok: false, error: 'DISABLED_IN_PURE_FRONTEND_MODE' }
+  }
+  
   emitEvent('COMMAND', { command, payload })
 
   const dot = command.indexOf('.')
@@ -1371,7 +1400,7 @@ const api = new Elysia()
       return ''
     }
   })
-  .get('/health', () => ({ ok: true, port }))
+  .get('/health', () => ({ ok: true, port, pureFrontend: isPureFrontend }))
   .get('/events', ({ query }) => {
     const sinceRaw = Number((query as any)?.since ?? 0)
     const since = Number.isFinite(sinceRaw) ? Math.max(0, Math.floor(sinceRaw)) : 0
@@ -1422,6 +1451,12 @@ const api = new Elysia()
     return { ok: true }
   })
   .get('/ui/:windowId', ({ params, set }) => {
+    // 纯前端模式下禁用 UI State 管理
+    if (isPureFrontend) {
+      set.status = 503
+      return { ok: false, error: 'UI_STATE_DISABLED_IN_PURE_FRONTEND_MODE' }
+    }
+    
     const windowId = decodeURIComponent(coerceString((params as any)?.windowId))
     if (!windowId) {
       set.status = 400
@@ -1432,6 +1467,12 @@ const api = new Elysia()
     return { ok: true, state }
   })
   .put('/ui/:windowId/:key', ({ params, body, set }) => {
+    // 纯前端模式下禁用 UI State 管理
+    if (isPureFrontend) {
+      set.status = 503
+      return { ok: false, error: 'UI_STATE_DISABLED_IN_PURE_FRONTEND_MODE' }
+    }
+    
     const windowId = decodeURIComponent(coerceString((params as any)?.windowId))
     const key = decodeURIComponent(coerceString((params as any)?.key))
     if (!windowId || !key) {
@@ -1444,6 +1485,12 @@ const api = new Elysia()
     return { ok: true }
   })
   .delete('/ui/:windowId/:key', ({ params, set }) => {
+    // 纯前端模式下禁用 UI State 管理
+    if (isPureFrontend) {
+      set.status = 503
+      return { ok: false, error: 'UI_STATE_DISABLED_IN_PURE_FRONTEND_MODE' }
+    }
+    
     const windowId = decodeURIComponent(coerceString((params as any)?.windowId))
     const key = decodeURIComponent(coerceString((params as any)?.key))
     if (!windowId || !key) {
@@ -1742,7 +1789,13 @@ const api = new Elysia()
   )
   .get(
     '/ui-state/:windowId',
-    async ({ params }) => {
+    async ({ params, set }) => {
+      // 纯前端模式下禁用 UI State 管理
+      if (isPureFrontend) {
+        set.status = 503
+        return { ok: false, error: 'UI_STATE_DISABLED_IN_PURE_FRONTEND_MODE' }
+      }
+      
       const state = getOrInitUiState(params.windowId)
       emitEvent('UI_STATE_GET', { windowId: params.windowId })
       return { ok: true, windowId: params.windowId, state }
@@ -1751,7 +1804,13 @@ const api = new Elysia()
   )
   .put(
     '/ui-state/:windowId/:key',
-    async ({ params, body }) => {
+    async ({ params, body, set }) => {
+      // 纯前端模式下禁用 UI State 管理
+      if (isPureFrontend) {
+        set.status = 503
+        return { ok: false, error: 'UI_STATE_DISABLED_IN_PURE_FRONTEND_MODE' }
+      }
+      
       const state = getOrInitUiState(params.windowId)
       state[params.key] = body
       emitEvent('UI_STATE_PUT', { windowId: params.windowId, key: params.key, value: body })
@@ -1761,7 +1820,13 @@ const api = new Elysia()
   )
   .delete(
     '/ui-state/:windowId/:key',
-    async ({ params }) => {
+    async ({ params, set }) => {
+      // 纯前端模式下禁用 UI State 管理
+      if (isPureFrontend) {
+        set.status = 503
+        return { ok: false, error: 'UI_STATE_DISABLED_IN_PURE_FRONTEND_MODE' }
+      }
+      
       const state = getOrInitUiState(params.windowId)
       delete state[params.key]
       emitEvent('UI_STATE_DEL', { windowId: params.windowId, key: params.key })
@@ -2010,13 +2075,16 @@ const castApi = new Elysia()
   )
 
 async function bootstrap(): Promise<void> {
-  try {
-    await cleanupLegacyPersistedMonitoringData()
-  } catch {}
+  // 纯前端模式下跳过监控数据清理和笔记会话初始化
+  if (!isPureFrontend) {
+    try {
+      await cleanupLegacyPersistedMonitoringData()
+    } catch {}
 
-  try {
-    await initNotesSessionOnStartup()
-  } catch {}
+    try {
+      await initNotesSessionOnStartup()
+    } catch {}
+  }
 
   try {
     await castApi.listen({ hostname: castHost, port: castPort })
@@ -2032,7 +2100,16 @@ async function bootstrap(): Promise<void> {
     }
   }
 
-  emitEvent('BACKEND_STARTED', { transport, host, port, castHost, castPort, dbPath, csBaseUrl: csBaseUrl || undefined })
+  emitEvent('BACKEND_STARTED', { 
+    transport, 
+    host, 
+    port, 
+    castHost, 
+    castPort, 
+    dbPath, 
+    csBaseUrl: csBaseUrl || undefined,
+    pureFrontend: isPureFrontend 
+  })
 }
 
 bootstrap().catch((e) => {

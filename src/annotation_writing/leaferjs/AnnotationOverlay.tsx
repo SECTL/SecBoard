@@ -28,6 +28,9 @@ import {
   type VideoShowViewTransform,
   useUiStateBus
 } from '../../status'
+import { useFrontendState } from '../../status/frontendState'
+
+const IS_FRONTEND_MODE = import.meta.env.VITE_FRONTEND_MODE === 'true'
 
 type LineRole = 'stroke' | 'eraserPixel'
 
@@ -176,6 +179,18 @@ type AnnotationOverlayAppProps = {
 
 export function AnnotationOverlayApp(props: AnnotationOverlayAppProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
+
+  // 纯前端模式：尝试获取 FrontendState context，如果不存在则回退到后端模式
+  let frontendState: ReturnType<typeof useFrontendState> | null = null
+  try {
+    frontendState = useFrontendState()
+  } catch {
+    // FrontendStateProvider 未提供，使用后端模式
+    frontendState = null
+  }
+
+  const useFrontend = IS_FRONTEND_MODE && frontendState !== null
+
   const bus = useUiStateBus(UI_STATE_APP_WINDOW_ID)
   const setUiStateKeyRef = useRef(bus.setKey)
 
@@ -183,12 +198,41 @@ export function AnnotationOverlayApp(props: AnnotationOverlayAppProps) {
     setUiStateKeyRef.current = bus.setKey
   }, [bus.setKey])
 
-  const tool = bus.state[TOOL_UI_STATE_KEY] === 'pen' ? 'pen' : bus.state[TOOL_UI_STATE_KEY] === 'eraser' ? 'eraser' : 'mouse'
-  const penType = bus.state[PEN_TYPE_UI_STATE_KEY] === 'highlighter' ? 'highlighter' : bus.state[PEN_TYPE_UI_STATE_KEY] === 'laser' ? 'laser' : 'writing'
-  const penColor = typeof bus.state[PEN_COLOR_UI_STATE_KEY] === 'string' ? (bus.state[PEN_COLOR_UI_STATE_KEY] as string) : '#333333'
-  const penThickness = typeof bus.state[PEN_THICKNESS_UI_STATE_KEY] === 'number' ? (bus.state[PEN_THICKNESS_UI_STATE_KEY] as number) : 6
-  const eraserThickness = typeof bus.state[ERASER_THICKNESS_UI_STATE_KEY] === 'number' ? (bus.state[ERASER_THICKNESS_UI_STATE_KEY] as number) : 18
-  const eraserType = bus.state[ERASER_TYPE_UI_STATE_KEY] === 'stroke' ? 'stroke' : 'pixel'
+  // 工具状态：纯前端模式使用前端状态，否则使用后端状态
+  const tool = useFrontend
+    ? frontendState!.state.tool
+    : bus.state[TOOL_UI_STATE_KEY] === 'pen'
+      ? 'pen'
+      : bus.state[TOOL_UI_STATE_KEY] === 'eraser'
+        ? 'eraser'
+        : 'mouse'
+  const penType = useFrontend
+    ? frontendState!.state.penType
+    : bus.state[PEN_TYPE_UI_STATE_KEY] === 'highlighter'
+      ? 'highlighter'
+      : bus.state[PEN_TYPE_UI_STATE_KEY] === 'laser'
+        ? 'laser'
+        : 'writing'
+  const penColor = useFrontend
+    ? frontendState!.state.penColor
+    : typeof bus.state[PEN_COLOR_UI_STATE_KEY] === 'string'
+      ? (bus.state[PEN_COLOR_UI_STATE_KEY] as string)
+      : '#333333'
+  const penThickness = useFrontend
+    ? frontendState!.state.penThickness
+    : typeof bus.state[PEN_THICKNESS_UI_STATE_KEY] === 'number'
+      ? (bus.state[PEN_THICKNESS_UI_STATE_KEY] as number)
+      : 6
+  const eraserThickness = useFrontend
+    ? frontendState!.state.eraserThickness
+    : typeof bus.state[ERASER_THICKNESS_UI_STATE_KEY] === 'number'
+      ? (bus.state[ERASER_THICKNESS_UI_STATE_KEY] as number)
+      : 18
+  const eraserType = useFrontend
+    ? frontendState!.state.eraserType
+    : bus.state[ERASER_TYPE_UI_STATE_KEY] === 'stroke'
+      ? 'stroke'
+      : 'pixel'
 
   const effectiveStroke = useMemo(() => {
     const common = { curve: true as const, strokeCap: 'round', strokeJoin: 'round' }
@@ -295,15 +339,17 @@ export function AnnotationOverlayApp(props: AnnotationOverlayAppProps) {
     eraserThicknessRef.current = eraserThickness
   }, [eraserThickness])
 
-  const appModeRaw = props.forcedAppMode ?? bus.state[APP_MODE_UI_STATE_KEY]
+  const appModeRaw = props.forcedAppMode ?? (useFrontend ? frontendState!.state.appMode : bus.state[APP_MODE_UI_STATE_KEY])
   const appMode = appModeRaw === 'whiteboard' ? 'whiteboard' : appModeRaw === 'video-show' ? 'video-show' : 'toolbar'
   const isWhiteboardLike = appMode === 'whiteboard' || appMode === 'video-show'
   const shouldFreezeScreen = appMode === 'toolbar' && tool !== 'mouse' && leaferSettings.freezeScreen
   const rendererEngine = leaferSettings.rendererEngine ?? 'canvas2d'
 
   useEffect(() => {
+    // 纯前端模式不需要通知后端窗口输入状态
+    if (useFrontend) return
     void postCommand('win.setAnnotationInput', { enabled: isWhiteboardLike ? true : tool !== 'mouse' })
-  }, [tool, isWhiteboardLike])
+  }, [tool, isWhiteboardLike, useFrontend])
 
   useEffect(() => {
     if (!shouldFreezeScreen) {
@@ -328,9 +374,10 @@ export function AnnotationOverlayApp(props: AnnotationOverlayAppProps) {
     }
   }, [shouldFreezeScreen])
 
-  const undoRevRaw = bus.state[UNDO_REV_UI_STATE_KEY]
-  const redoRevRaw = bus.state[REDO_REV_UI_STATE_KEY]
-  const clearRevRaw = bus.state[CLEAR_PAGE_REV_UI_STATE_KEY]
+  // 撤销/重做/清除页面的版本号：纯前端模式使用前端状态，否则使用后端状态
+  const undoRevRaw = useFrontend ? frontendState!.state.undoRev : bus.state[UNDO_REV_UI_STATE_KEY]
+  const redoRevRaw = useFrontend ? frontendState!.state.redoRev : bus.state[REDO_REV_UI_STATE_KEY]
+  const clearRevRaw = useFrontend ? frontendState!.state.clearRev : bus.state[CLEAR_PAGE_REV_UI_STATE_KEY]
   const notesReloadRevRaw = bus.state[NOTES_RELOAD_REV_UI_STATE_KEY]
   const undoRev = typeof undoRevRaw === 'number' ? undoRevRaw : typeof undoRevRaw === 'string' ? Number(undoRevRaw) : 0
   const redoRev = typeof redoRevRaw === 'number' ? redoRevRaw : typeof redoRevRaw === 'string' ? Number(redoRevRaw) : 0
@@ -382,8 +429,9 @@ export function AnnotationOverlayApp(props: AnnotationOverlayAppProps) {
     api.reloadNotes?.()
   }, [notesReloadRev])
 
-  const notesPageIndexRaw = bus.state[NOTES_PAGE_INDEX_UI_STATE_KEY]
-  const notesPageTotalRaw = bus.state[NOTES_PAGE_TOTAL_UI_STATE_KEY]
+  // 笔记页面索引和总数：纯前端模式使用前端状态，否则使用后端状态
+  const notesPageIndexRaw = useFrontend ? frontendState!.state.notesPageIndex : bus.state[NOTES_PAGE_INDEX_UI_STATE_KEY]
+  const notesPageTotalRaw = useFrontend ? frontendState!.state.notesPageTotal : bus.state[NOTES_PAGE_TOTAL_UI_STATE_KEY]
   const notesPageIndex = typeof notesPageIndexRaw === 'number' ? notesPageIndexRaw : typeof notesPageIndexRaw === 'string' ? Number(notesPageIndexRaw) : 0
   const notesPageTotal = typeof notesPageTotalRaw === 'number' ? notesPageTotalRaw : typeof notesPageTotalRaw === 'string' ? Number(notesPageTotalRaw) : 1
   const lastNotesPageIndexRef = useRef<number | null>(null)

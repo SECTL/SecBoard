@@ -29,7 +29,8 @@ import {
   isPenSettings,
   putUiStateKey,
   useAppMode,
-  useUiStateBus
+  useUiStateBus,
+  useFrontendState
 } from '../status'
 import { usePersistedState } from './hooks/usePersistedState'
 import { getToolbarNoticeKind, postCommand, setToolbarNoticeVisible } from './hooks/useBackend'
@@ -339,14 +340,19 @@ function FloatingToolbarInner() {
 
   const { toolbarButtonHintsEnabled } = useAppearanceSettings()
 
+  const isPureFrontend = (import.meta as any)?.env?.VITE_PURE_FRONTEND === true
+  const frontendState = useFrontendState()
+
   useToolbarWindowAutoResize({ root: contentRef.current })
   useZoomOnWheel()
 
   useEffect(() => {
+    if (isPureFrontend) return
     postCommand('app.setTool', { tool: 'mouse' }).catch(() => undefined)
-  }, [])
+  }, [isPureFrontend])
 
   useEffect(() => {
+    if (isPureFrontend) return
     let cancelled = false
 
     const check = async () => {
@@ -388,7 +394,7 @@ function FloatingToolbarInner() {
       cancelled = true
       window.clearInterval(id)
     }
-  }, [])
+  }, [isPureFrontend])
 
   useEffect(() => {
     if (!backendEvents.length) return
@@ -398,6 +404,7 @@ function FloatingToolbarInner() {
   }, [backendEvents])
 
   useEffect(() => {
+    if (isPureFrontend) return
     let cancelled = false
 
     ;(async () => {
@@ -421,33 +428,64 @@ function FloatingToolbarInner() {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [isPureFrontend])
 
   const toggleExpanded = () => {
     setState({ ...state, expanded: !isExpanded })
   }
 
-  // 澶勭悊绗旀寜閽偣鍑?
   const handlePenClick = () => {
     if (tool === 'pen') {
-      // 濡傛灉绗斿凡缁忔槸褰撳墠宸ュ叿锛屾墦寮€二级菜单（独立窗口）
-      void postCommand('toggle-subwindow', { kind: 'pen', placement: 'bottom' })
+      if (!isPureFrontend) {
+        void postCommand('toggle-subwindow', { kind: 'pen', placement: 'bottom' })
+      }
     } else {
-      // 鍚﹀垯鍒囨崲鍒扮瑪宸ュ叿
       setState({ ...state, tool: 'pen' })
-      void postCommand('app.setTool', { tool: 'pen' })
+      if (isPureFrontend) {
+        frontendState.setTool('pen')
+      } else {
+        void postCommand('app.setTool', { tool: 'pen' })
+      }
     }
   }
 
-  // 处理橡皮按钮点击
   const handleEraserClick = () => {
     if (tool === 'eraser') {
-      // 濡傛灉姗＄毊宸茬粡鏄綋鍓嶅伐鍏凤紝鎵撳紑浜岀骇鑿滃崟锛堢嫭绔嬬獥鍙ｏ級
-      void postCommand('toggle-subwindow', { kind: 'eraser', placement: 'bottom' })
+      if (!isPureFrontend) {
+        void postCommand('toggle-subwindow', { kind: 'eraser', placement: 'bottom' })
+      }
     } else {
-      // 鍚﹀垯鍒囨崲鍒版鐨伐鍏?
       setState({ ...state, tool: 'eraser' })
-      void postCommand('app.setTool', { tool: 'eraser' })
+      if (isPureFrontend) {
+        frontendState.setTool('eraser')
+      } else {
+        void postCommand('app.setTool', { tool: 'eraser' })
+      }
+    }
+  }
+
+  const handleMouseClick = () => {
+    setState({ ...state, tool: 'mouse' })
+    if (isPureFrontend) {
+      frontendState.setTool('mouse')
+    } else {
+      void postCommand('app.setTool', { tool: 'mouse' })
+    }
+  }
+
+  const handleUndo = () => {
+    if (isPureFrontend) {
+      frontendState.undo()
+    } else {
+      void postCommand('app.undo')
+    }
+  }
+
+  const handleRedo = () => {
+    if (isPureFrontend) {
+      frontendState.redo()
+    } else {
+      void postCommand('app.redo')
     }
   }
 
@@ -478,10 +516,7 @@ function FloatingToolbarInner() {
           title={ariaLabel}
           showInToolbar={visibility.showInToolbar}
           showInFeaturePanel={visibility.showInFeaturePanel}
-          onClick={() => {
-            setState({ ...state, tool: 'mouse' })
-            void postCommand('app.setTool', { tool: 'mouse' })
-          }}
+          onClick={handleMouseClick}
         >
           {withButtonHint(<ToolbarToolIcon kind="mouse" />, ariaLabel)}
         </Button>
@@ -549,7 +584,7 @@ function FloatingToolbarInner() {
 
     if (id === 'video-show') {
       const visibility = getAppButtonVisibility('video-show')
-      const ariaLabel = '瑙嗛展台'
+      const ariaLabel = '视频展台'
       return (
         <Button
           key="video-show"
@@ -574,7 +609,7 @@ function FloatingToolbarInner() {
   const renderSecondaryButton = (id: SecondaryButtonId) => {
     if (id === 'undo') {
       const visibility = getAppButtonVisibility('undo')
-      const ariaLabel = '鎾ら攢'
+      const ariaLabel = '撤销'
       return (
         <Button
           key="undo"
@@ -583,9 +618,7 @@ function FloatingToolbarInner() {
           title={ariaLabel}
           showInToolbar={visibility.showInToolbar}
           showInFeaturePanel={visibility.showInFeaturePanel}
-          onClick={() => {
-            void postCommand('app.undo')
-          }}
+          onClick={handleUndo}
         >
           {withButtonHint(<UndoIcon />, ariaLabel)}
         </Button>
@@ -603,9 +636,7 @@ function FloatingToolbarInner() {
           title={ariaLabel}
           showInToolbar={visibility.showInToolbar}
           showInFeaturePanel={visibility.showInFeaturePanel}
-          onClick={() => {
-            void postCommand('app.redo')
-          }}
+          onClick={handleRedo}
         >
           {withButtonHint(<RedoIcon />, ariaLabel)}
         </Button>
@@ -624,7 +655,9 @@ function FloatingToolbarInner() {
           showInToolbar={visibility.showInToolbar}
           showInFeaturePanel={visibility.showInFeaturePanel}
           onClick={() => {
-            void postCommand('toggle-subwindow', { kind: 'clock', placement: 'bottom' })
+            if (!isPureFrontend) {
+              void postCommand('toggle-subwindow', { kind: 'clock', placement: 'bottom' })
+            }
           }}
         >
           {withButtonHint(<ClockIcon />, ariaLabel)}
@@ -644,7 +677,9 @@ function FloatingToolbarInner() {
           showInToolbar={visibility.showInToolbar}
           showInFeaturePanel={visibility.showInFeaturePanel}
           onClick={() => {
-            void postCommand('toggle-subwindow', { kind: 'events', placement: 'bottom' })
+            if (!isPureFrontend) {
+              void postCommand('toggle-subwindow', { kind: 'events', placement: 'bottom' })
+            }
           }}
         >
           {withButtonHint(<EventsIcon />, ariaLabel)}
@@ -652,7 +687,7 @@ function FloatingToolbarInner() {
       )
     }
     const visibility = getAppButtonVisibility('feature-panel')
-    const ariaLabel = '鍔熻兘闈㈡澘'
+    const ariaLabel = '功能面板'
     return (
       <Button
         key="feature-panel"
@@ -662,7 +697,9 @@ function FloatingToolbarInner() {
         showInToolbar={visibility.showInToolbar}
         showInFeaturePanel={visibility.showInFeaturePanel}
         onClick={() => {
-          void postCommand('toggle-subwindow', { kind: 'feature-panel', placement: 'bottom' })
+          if (!isPureFrontend) {
+            void postCommand('toggle-subwindow', { kind: 'feature-panel', placement: 'bottom' })
+          }
         }}
       >
         {withButtonHint(
@@ -684,7 +721,7 @@ function FloatingToolbarInner() {
     >
       <div ref={contentRef} className="toolbarDragArea">
         <div className="toolbarLayout">
-          {/* 涓昏宸ュ叿鎸夐挳鍖哄煙 */}
+          {/* 主要工具按钮区域 */}
           <div className="toolbarBarRow">
             <ButtonGroup>
               {primaryButtonsOrder.map(renderPrimaryButton)}
@@ -712,7 +749,7 @@ function FloatingToolbarInner() {
             })()}
           </div>
 
-          {/* 鍙姌鍙犲尯鍩?*/}
+          {/* 可折叠区域 */}
           <motion.div
             className="toolbarCollapsibleSection"
             initial={false}
@@ -749,7 +786,6 @@ export function FloatingToolbarHandleApp(props?: {
   const reduceMotion = useReducedMotion()
   const [dragging, setDragging] = useState(false)
 
-  // 搴旂敤澶栬设置（强调色等）
   useAppearanceSettings()
 
   useEffect(() => {
@@ -807,5 +843,3 @@ export function FloatingToolbarHandleApp(props?: {
     </motion.div>
   )
 }
-
-

@@ -10,12 +10,18 @@
     "dev:all": "bunx --package concurrently concurrently -k -n backend,web \"bun run dev:backend\" \"bun run dev:web\"",
     "dev:web": "bunx vite --config vite.config.ts",
     "dev:backend": "bun --watch src/elysia/index.ts",
+    "dev:frontend": "bunx vite --config vite.config.ts --mode frontend",
     "build": "bunx vite build --config vite.config.ts",
     "build:backend": "bunx tsc -p tsconfig.backend.json",
+    "build:frontend": "bunx vite build --config vite.config.ts --mode frontend",
     "preview": "bunx vite preview --config vite.config.ts",
     "typecheck": "bunx tsc -p tsconfig.json --noEmit",
     "test": "bunx vitest run",
-    "release": "release-it"
+    "release": "release-it",
+    "dev:backend:bun": "cd backend && bun run dev:bun",
+    "dev:backend:node": "cd backend && bun run dev:node",
+    "build:backend:bun": "cd backend && bun run build:bun",
+    "build:backend:cf": "cd backend && bun run build:cf"
   },
   "dependencies": {
     "@fluentui/react-icons": "^2.0.285",

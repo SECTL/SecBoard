@@ -1,4 +1,4 @@
-﻿import { Add20Filled, Camera20Filled, ChevronLeft20Filled, ChevronRight20Filled } from '@fluentui/react-icons'
+import { Add20Filled, Camera20Filled, ChevronLeft20Filled, ChevronRight20Filled } from '@fluentui/react-icons'
 import React, { useEffect, useMemo, useRef } from 'react'
 import {
   APP_MODE_UI_STATE_KEY,
@@ -6,7 +6,9 @@ import {
   NOTES_PAGE_TOTAL_UI_STATE_KEY,
   UI_STATE_APP_WINDOW_ID,
   isAppMode,
+  isPureFrontendMode,
   postCommand,
+  useFrontendState,
   useUiStateBus
 } from '../status'
 import { Button } from '../button'
@@ -35,6 +37,8 @@ export function MultiPageControlWindow() {
   const bus = useUiStateBus(UI_STATE_APP_WINDOW_ID)
   const contentRef = useRef<HTMLDivElement | null>(null)
   const { toolbarButtonHintsEnabled } = useAppearanceSettings()
+  const frontendState = useFrontendState()
+  const isFrontend = isPureFrontendMode()
 
   const pageIndexRaw = bus.state[NOTES_PAGE_INDEX_UI_STATE_KEY]
   const pageTotalRaw = bus.state[NOTES_PAGE_TOTAL_UI_STATE_KEY]
@@ -42,13 +46,19 @@ export function MultiPageControlWindow() {
   const appMode = isAppMode(appModeRaw) ? appModeRaw : 'toolbar'
 
   const { index, total } = useMemo(() => {
+    if (isFrontend) {
+      const t = frontendState.state.notesPageTotal
+      const i = frontendState.state.notesPageIndex
+      if (t < 1 || i < 0) return { index: -1, total: -1 }
+      return { index: Math.max(0, Math.min(t - 1, i)), total: t }
+    }
     const totalV = typeof pageTotalRaw === 'number' ? pageTotalRaw : typeof pageTotalRaw === 'string' ? Number(pageTotalRaw) : NaN
     const indexV = typeof pageIndexRaw === 'number' ? pageIndexRaw : typeof pageIndexRaw === 'string' ? Number(pageIndexRaw) : NaN
     const t = Number.isFinite(totalV) ? Math.floor(totalV) : -1
     const i = Number.isFinite(indexV) ? Math.floor(indexV) : -1
     if (t < 1 || i < 0) return { index: -1, total: -1 }
     return { index: Math.max(0, Math.min(t - 1, i)), total: t }
-  }, [pageIndexRaw, pageTotalRaw])
+  }, [isFrontend, frontendState.state.notesPageTotal, frontendState.state.notesPageIndex, pageIndexRaw, pageTotalRaw])
 
   const outerPadding = 10
   const gap = 10
@@ -146,7 +156,13 @@ export function MultiPageControlWindow() {
                 kind="icon"
                 ariaLabel="上一页"
                 title="上一页"
-                onClick={() => postCommand('app.prevPage', {}).catch(() => undefined)}
+                onClick={() => {
+                  if (isFrontend) {
+                    frontendState.prevPage()
+                  } else {
+                    postCommand('app.prevPage', {}).catch(() => undefined)
+                  }
+                }}
               >
                 {withButtonHint(<PrevPageIcon />, '上一页')}
               </Button>
@@ -157,7 +173,12 @@ export function MultiPageControlWindow() {
                 ariaLabel="页面缩略图查看菜单"
                 title="页面缩略图查看菜单"
                 disabled={index < 0 || total < 1}
-                onClick={() => postCommand('app.togglePageThumbnailsMenu', {}).catch(() => undefined)}
+                onClick={() => {
+                  if (isFrontend) {
+                    return
+                  }
+                  postCommand('app.togglePageThumbnailsMenu', {}).catch(() => undefined)
+                }}
                 style={{
                   height: buttonHeight,
                   minWidth: 86,
@@ -173,7 +194,13 @@ export function MultiPageControlWindow() {
                 kind="icon"
                 ariaLabel="下一页"
                 title="下一页"
-                onClick={() => postCommand('app.nextPage', {}).catch(() => undefined)}
+                onClick={() => {
+                  if (isFrontend) {
+                    frontendState.nextPage()
+                  } else {
+                    postCommand('app.nextPage', {}).catch(() => undefined)
+                  }
+                }}
               >
                 {withButtonHint(<NextPageIcon />, '下一页')}
               </Button>
@@ -189,6 +216,8 @@ export function MultiPageControlHandleWindow() {
   useZoomOnWheel()
   const bus = useUiStateBus(UI_STATE_APP_WINDOW_ID)
   const { toolbarButtonHintsEnabled } = useAppearanceSettings()
+  const frontendState = useFrontendState()
+  const isFrontend = isPureFrontendMode()
   const appModeRaw = bus.state[APP_MODE_UI_STATE_KEY]
   const appMode = isAppMode(appModeRaw) ? appModeRaw : 'toolbar'
 
@@ -203,12 +232,20 @@ export function MultiPageControlHandleWindow() {
   }
 
   const action = useMemo(() => {
+    const handleNewPage = () => {
+      if (isFrontend) {
+        frontendState.newPage()
+      } else {
+        postCommand('app.newPage', {}).catch(() => undefined)
+      }
+    }
+
     if (appMode === 'video-show') {
       return {
         visible: true as const,
         ariaLabel: '拍摄按钮',
         title: '拍摄按钮',
-        onClick: () => postCommand('app.newPage', {}).catch(() => undefined),
+        onClick: handleNewPage,
         icon: <CaptureIcon />
       }
     }
@@ -216,10 +253,10 @@ export function MultiPageControlHandleWindow() {
       visible: true as const,
       ariaLabel: '新建页面',
       title: '新建页面',
-      onClick: () => postCommand('app.newPage', {}).catch(() => undefined),
+      onClick: handleNewPage,
       icon: <AddIcon />
     }
-  }, [appMode])
+  }, [appMode, isFrontend, frontendState])
 
   return (
     <div className="toolbarRoot" data-toolbar-button-hints={toolbarButtonHintsEnabled ? 'true' : undefined}>

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useContext, useEffect, useRef, useState } from 'react'
 import { motion, useReducedMotion } from '../Framer_Motion'
 import { MotionButton } from '../button'
 import { postCommand } from '../toolbar/hooks/useBackend'
@@ -14,6 +14,7 @@ import {
   useUiStateBus,
   type EraserType
 } from '../status'
+import { FrontendStateContext } from '../status/frontendState'
 import './styles/subwindow.css'
 import './styles/EraserSubmenu.css'
 
@@ -172,9 +173,12 @@ export function EraserSubmenu(props: { kind: string }) {
   const measureRef = useRef<HTMLDivElement | null>(null)
   const reduceMotion = useReducedMotion()
   const bus = useUiStateBus(UI_STATE_APP_WINDOW_ID)
+  const frontendStateCtx = useContext(FrontendStateContext)
   
   const [selectedType, setSelectedType] = useState<EraserType>('pixel')
   const [thickness, setThickness] = useState(30)
+
+  const isFrontendMode = frontendStateCtx !== null
 
   // 监听尺寸变化并通知主进程调整窗口大小
   useEffect(() => {
@@ -223,8 +227,12 @@ export function EraserSubmenu(props: { kind: string }) {
       type: payload.type,
       thickness: Math.max(1, Math.min(240, payload.thickness))
     }
-    void postCommand('app.setEraserSettings', normalized)
-    void putKv(ERASER_SETTINGS_KV_KEY, normalized).catch(() => undefined)
+    if (isFrontendMode) {
+      frontendStateCtx!.setEraserSettings(normalized.type, normalized.thickness)
+    } else {
+      void postCommand('app.setEraserSettings', normalized)
+      void putKv(ERASER_SETTINGS_KV_KEY, normalized).catch(() => undefined)
+    }
   }
 
   const applySettings = (newType: EraserType, newThickness: number) => {
@@ -238,12 +246,21 @@ export function EraserSubmenu(props: { kind: string }) {
   const busEraserThickness =
     typeof busEraserThicknessRaw === 'number' && Number.isFinite(busEraserThicknessRaw) ? busEraserThicknessRaw : undefined
 
-  useEffect(() => {
-    if (busEraserType) setSelectedType(busEraserType)
-    if (busEraserThickness !== undefined) setThickness(busEraserThickness)
-  }, [busEraserThickness, busEraserType])
+  const frontendEraserType = isFrontendMode ? frontendStateCtx!.state.eraserType : undefined
+  const frontendEraserThickness = isFrontendMode ? frontendStateCtx!.state.eraserThickness : undefined
 
   useEffect(() => {
+    if (isFrontendMode) {
+      if (frontendEraserType) setSelectedType(frontendEraserType)
+      if (frontendEraserThickness !== undefined) setThickness(frontendEraserThickness)
+    } else {
+      if (busEraserType) setSelectedType(busEraserType)
+      if (busEraserThickness !== undefined) setThickness(busEraserThickness)
+    }
+  }, [isFrontendMode, frontendEraserType, frontendEraserThickness, busEraserType, busEraserThickness])
+
+  useEffect(() => {
+    if (isFrontendMode) return
     let cancelled = false
     ;(async () => {
       try {
@@ -259,10 +276,14 @@ export function EraserSubmenu(props: { kind: string }) {
     return () => {
       cancelled = true
     }
-  }, [busEraserThickness, busEraserType])
+  }, [isFrontendMode, busEraserType, busEraserThickness])
 
   const handleClearAll = () => {
-    void postCommand('app.clearPage')
+    if (isFrontendMode) {
+      frontendStateCtx!.clearPage()
+    } else {
+      void postCommand('app.clearPage')
+    }
   }
 
   return (

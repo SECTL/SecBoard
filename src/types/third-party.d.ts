@@ -31,3 +31,11 @@ declare module 'bun:sqlite' {
     close(throwOnError?: boolean): void
   }
 }
+
+interface ImportMetaEnv {
+  readonly VITE_PURE_FRONTEND: string
+}
+
+interface ImportMeta {
+  readonly env: ImportMetaEnv
+}
