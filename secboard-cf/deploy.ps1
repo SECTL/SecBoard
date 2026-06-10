@@ -2,6 +2,25 @@
 
 $ErrorActionPreference = "Stop"
 
+# Pre-flight checks
+Write-Host "==> Checking wrangler installation..."
+$wranglerOk = $false
+try { $null = pnpm exec wrangler --version 2>&1; $wranglerOk = ($LASTEXITCODE -eq 0) } catch { $wranglerOk = $false }
+if (-not $wranglerOk) {
+  Write-Error "wrangler is not installed. Run: pnpm install"
+  exit 1
+}
+
+Write-Host "==> Checking wrangler authentication..."
+try {
+  $null = pnpm exec wrangler whoami 2>&1
+  if ($LASTEXITCODE -ne 0) { throw }
+  Write-Host "Authenticated."
+} catch {
+  Write-Error "Not logged in to Cloudflare. Run: pnpm exec wrangler login"
+  exit 1
+}
+
 Write-Host "=========================================" -ForegroundColor Cyan
 Write-Host "SecBoard Cloudflare 部署脚本" -ForegroundColor Cyan
 Write-Host "=========================================" -ForegroundColor Cyan

@@ -237,7 +237,17 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: dist-mac-${{ needs.parse.outputs.version }}
-          path: dist/**
+          path: |
+            dist/*.dmg
+            dist/*.zip
+            dist/*.AppImage
+            dist/*.deb
+            dist/*.exe
+            dist/*.blockmap
+            dist/*.yml
+            dist/*.yaml
+            dist/*.appx
+            dist/*.appxbundle
 
   build_linux:
     needs: parse
@@ -305,7 +315,17 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: dist-linux-${{ needs.parse.outputs.version }}
-          path: dist/**
+          path: |
+            dist/*.dmg
+            dist/*.zip
+            dist/*.AppImage
+            dist/*.deb
+            dist/*.exe
+            dist/*.blockmap
+            dist/*.yml
+            dist/*.yaml
+            dist/*.appx
+            dist/*.appxbundle
 
   release:
     needs: [parse, build_win, build_mac, build_linux]

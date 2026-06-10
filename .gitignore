@@ -6,3 +6,9 @@ out
 
 /dist-winget
 /src/office/PowerPoint/inkeys/PptHttpWrapper/bin
+
+# Database files
+*.sqlite
+*.sqlite3
+*.db
+lanstart.sqlite

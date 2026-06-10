@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useRef, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { motion, useReducedMotion } from '../Framer_Motion'
 import { MotionButton } from '../button'
 import { postCommand } from '../toolbar/hooks/useBackend'
@@ -11,18 +11,11 @@ import {
   UI_STATE_APP_WINDOW_ID,
   getKv,
   isPenSettings,
-  putKv,
   useUiStateBus,
-  type PenType,
-  FrontendStateContext
+  type PenType
 } from '../status'
 import './styles/subwindow.css'
 import './styles/PenSubmenu.css'
-
-function useOptionalFrontendState() {
-  const context = useContext(FrontendStateContext)
-  return context
-}
 
 // 预设颜色 - 3x3 布局需要 9 个颜色
 const PRESET_COLORS = [
@@ -243,39 +236,24 @@ export function PenSubmenu(props: { kind: string }) {
   const measureRef = useRef<HTMLDivElement | null>(null)
   const reduceMotion = useReducedMotion()
   const bus = useUiStateBus(UI_STATE_APP_WINDOW_ID)
-  const frontendState = useOptionalFrontendState()
   
   const [selectedColor, setSelectedColor] = useState('#000000')
   const [selectedPenType, setSelectedPenType] = useState<PenType>('writing')
   const [thickness, setThickness] = useState(12)
 
-  const isFrontendMode = frontendState != null
-
   const handleColorChange = (color: string) => {
     setSelectedColor(color)
-    if (isFrontendMode) {
-      frontendState.setPenSettings(undefined, color, undefined)
-    } else {
-      applyPenSettings({ color })
-    }
+    applyPenSettings({ color })
   }
 
   const handlePenTypeChange = (type: PenType) => {
     setSelectedPenType(type)
-    if (isFrontendMode) {
-      frontendState.setPenSettings(type, undefined, undefined)
-    } else {
-      applyPenSettings({ type })
-    }
+    applyPenSettings({ type })
   }
 
   const handleThicknessChange = (value: number) => {
     setThickness(value)
-    if (isFrontendMode) {
-      frontendState.setPenSettings(undefined, undefined, value)
-    } else {
-      applyPenSettings({ thickness: value })
-    }
+    applyPenSettings({ thickness: value })
   }
 
   // 监听尺寸变化并通知主进程调整窗口大小
@@ -321,14 +299,12 @@ export function PenSubmenu(props: { kind: string }) {
   }, [props.kind])
 
   const sendPenSettings = (payload: { type: PenType; color: string; thickness: number }) => {
-    if (isFrontendMode) return
     const normalized = {
       type: payload.type,
       color: payload.color,
       thickness: Math.max(1, Math.min(120, payload.thickness))
     }
     void postCommand('app.setPenSettings', normalized)
-    void putKv(PEN_SETTINGS_KV_KEY, normalized).catch(() => undefined)
   }
 
   const applyPenSettings = (next?: { type?: PenType; color?: string; thickness?: number }) => {
@@ -348,14 +324,12 @@ export function PenSubmenu(props: { kind: string }) {
   const busPenThickness = typeof busPenThicknessRaw === 'number' && Number.isFinite(busPenThicknessRaw) ? busPenThicknessRaw : undefined
 
   useEffect(() => {
-    if (isFrontendMode) return
     if (busPenType) setSelectedPenType(busPenType)
     if (busPenColor) setSelectedColor(busPenColor)
     if (busPenThickness !== undefined) setThickness(busPenThickness)
-  }, [busPenColor, busPenThickness, busPenType, isFrontendMode])
+  }, [busPenColor, busPenThickness, busPenType])
 
   useEffect(() => {
-    if (isFrontendMode) return
     let cancelled = false
     ;(async () => {
       try {
@@ -372,15 +346,7 @@ export function PenSubmenu(props: { kind: string }) {
     return () => {
       cancelled = true
     }
-  }, [busPenColor, busPenThickness, busPenType, isFrontendMode])
-
-  useEffect(() => {
-    if (!isFrontendMode) return
-    const { state } = frontendState
-    if (state.penType) setSelectedPenType(state.penType)
-    if (state.penColor) setSelectedColor(state.penColor)
-    if (state.penThickness !== undefined) setThickness(state.penThickness)
-  }, [frontendState?.state.penType, frontendState?.state.penColor, frontendState?.state.penThickness, isFrontendMode, frontendState])
+  }, [busPenColor, busPenThickness, busPenType])
 
   return (
     <motion.div

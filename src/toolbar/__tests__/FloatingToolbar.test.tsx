@@ -63,21 +63,21 @@ describe('FloatingToolbar', () => {
     expect(calls.map((c) => c.command)).toContain('toggle-subwindow')
   })
 
-  it('switches app mode to whiteboard on click', async () => {
+  it('posts app mode command when entering video show', async () => {
     const user = userEvent.setup()
-    const uiStateCalls: Array<{ windowId: string; key: string; value: unknown }> = []
+    const calls: Array<{ command: string; payload?: unknown }> = []
     window.lanstart = {
-      postCommand: async () => null,
+      postCommand: async (command, payload) => {
+        calls.push({ command, payload })
+        return null
+      },
       getEvents: async () => ({ items: [], latest: 0 }),
       getKv: async () => {
         throw new Error('kv_not_found')
       },
       putKv: async () => null,
-      getUiState: async () => ({}),
-      putUiStateKey: async (windowId, key, value) => {
-        uiStateCalls.push({ windowId, key, value })
-        return null
-      },
+      getUiState: async () => ({ mode: 'whiteboard' }),
+      putUiStateKey: async () => null,
       deleteUiStateKey: async () => null,
       apiRequest: async () => ({ status: 200, body: { ok: true } }),
       clipboardWriteText: async () => null,
@@ -86,28 +86,26 @@ describe('FloatingToolbar', () => {
     }
 
     render(<FloatingToolbarApp />)
-    await user.click(await screen.findByRole('button', { name: '白板' }))
+    await user.click(await screen.findByRole('button', { name: '视频展台' }))
 
-    expect(uiStateCalls).toContainEqual({ windowId: 'app', key: 'mode', value: 'whiteboard' })
+    expect(calls).toContainEqual({ command: 'settings.setAppMode', payload: { mode: 'video-show' } })
   })
 
-  it('restores notes page state when switching modes', async () => {
+  it('posts app mode command when returning to whiteboard', async () => {
     const user = userEvent.setup()
-    const uiStateCalls: Array<{ windowId: string; key: string; value: unknown }> = []
+    const calls: Array<{ command: string; payload?: unknown }> = []
     window.lanstart = {
-      postCommand: async () => null,
+      postCommand: async (command, payload) => {
+        calls.push({ command, payload })
+        return null
+      },
       getEvents: async () => ({ items: [], latest: 0 }),
-      getKv: async (key) => {
-        if (key === 'notes-page-index:whiteboard') return 2
-        if (key === 'notes-page-total:whiteboard') return 5
+      getKv: async () => {
         throw new Error('kv_not_found')
       },
       putKv: async () => null,
-      getUiState: async () => ({ notesPageIndex: 0, notesPageTotal: 1, mode: 'toolbar' }),
-      putUiStateKey: async (windowId, key, value) => {
-        uiStateCalls.push({ windowId, key, value })
-        return null
-      },
+      getUiState: async () => ({ mode: 'video-show' }),
+      putUiStateKey: async () => null,
       deleteUiStateKey: async () => null,
       apiRequest: async () => ({ status: 200, body: { ok: true } }),
       clipboardWriteText: async () => null,
@@ -116,11 +114,10 @@ describe('FloatingToolbar', () => {
     }
 
     render(<FloatingToolbarApp />)
-    await user.click(await screen.findByRole('button', { name: '白板' }))
     await new Promise((r) => setTimeout(r, 0))
+    await user.click(await screen.findByRole('button', { name: '白板' }))
 
-    expect(uiStateCalls).toContainEqual({ windowId: 'app', key: 'notesPageTotal', value: 5 })
-    expect(uiStateCalls).toContainEqual({ windowId: 'app', key: 'notesPageIndex', value: 2 })
+    expect(calls).toContainEqual({ command: 'settings.setAppMode', payload: { mode: 'whiteboard' } })
   })
 
   it('does not raise unhandled rejection on quit', async () => {

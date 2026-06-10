@@ -1,6 +1,6 @@
 ﻿import {
   WeatherSunny20Regular,
-  Toolbar20Regular,
+  Toolbox20Regular,
   Grid20Regular,
   Edit20Regular,
   Whiteboard20Regular,
@@ -17,7 +17,7 @@ import './SettingsSidebar.css'
 
 const TabIcons: Record<SettingsTab, React.ReactNode> = {
   appearance: <WeatherSunny20Regular />,
-  toolbar: <Toolbar20Regular />,
+  toolbar: <Toolbox20Regular />,
   'feature-panel': <Grid20Regular />,
   annotation: <Edit20Regular />,
   whiteboard: <Whiteboard20Regular />,

@@ -28,9 +28,6 @@ import {
   type VideoShowViewTransform,
   useUiStateBus
 } from '../../status'
-import { useFrontendState } from '../../status/frontendState'
-
-const IS_FRONTEND_MODE = import.meta.env.VITE_FRONTEND_MODE === 'true'
 
 type LineRole = 'stroke' | 'eraserPixel'
 
@@ -179,18 +176,6 @@ type AnnotationOverlayAppProps = {
 
 export function AnnotationOverlayApp(props: AnnotationOverlayAppProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
-
-  // 纯前端模式：尝试获取 FrontendState context，如果不存在则回退到后端模式
-  let frontendState: ReturnType<typeof useFrontendState> | null = null
-  try {
-    frontendState = useFrontendState()
-  } catch {
-    // FrontendStateProvider 未提供，使用后端模式
-    frontendState = null
-  }
-
-  const useFrontend = IS_FRONTEND_MODE && frontendState !== null
-
   const bus = useUiStateBus(UI_STATE_APP_WINDOW_ID)
   const setUiStateKeyRef = useRef(bus.setKey)
 
@@ -198,41 +183,22 @@ export function AnnotationOverlayApp(props: AnnotationOverlayAppProps) {
     setUiStateKeyRef.current = bus.setKey
   }, [bus.setKey])
 
-  // 工具状态：纯前端模式使用前端状态，否则使用后端状态
-  const tool = useFrontend
-    ? frontendState!.state.tool
-    : bus.state[TOOL_UI_STATE_KEY] === 'pen'
+  const tool =
+    bus.state[TOOL_UI_STATE_KEY] === 'pen'
       ? 'pen'
       : bus.state[TOOL_UI_STATE_KEY] === 'eraser'
         ? 'eraser'
         : 'mouse'
-  const penType = useFrontend
-    ? frontendState!.state.penType
-    : bus.state[PEN_TYPE_UI_STATE_KEY] === 'highlighter'
+  const penType =
+    bus.state[PEN_TYPE_UI_STATE_KEY] === 'highlighter'
       ? 'highlighter'
       : bus.state[PEN_TYPE_UI_STATE_KEY] === 'laser'
         ? 'laser'
         : 'writing'
-  const penColor = useFrontend
-    ? frontendState!.state.penColor
-    : typeof bus.state[PEN_COLOR_UI_STATE_KEY] === 'string'
-      ? (bus.state[PEN_COLOR_UI_STATE_KEY] as string)
-      : '#333333'
-  const penThickness = useFrontend
-    ? frontendState!.state.penThickness
-    : typeof bus.state[PEN_THICKNESS_UI_STATE_KEY] === 'number'
-      ? (bus.state[PEN_THICKNESS_UI_STATE_KEY] as number)
-      : 6
-  const eraserThickness = useFrontend
-    ? frontendState!.state.eraserThickness
-    : typeof bus.state[ERASER_THICKNESS_UI_STATE_KEY] === 'number'
-      ? (bus.state[ERASER_THICKNESS_UI_STATE_KEY] as number)
-      : 18
-  const eraserType = useFrontend
-    ? frontendState!.state.eraserType
-    : bus.state[ERASER_TYPE_UI_STATE_KEY] === 'stroke'
-      ? 'stroke'
-      : 'pixel'
+  const penColor = typeof bus.state[PEN_COLOR_UI_STATE_KEY] === 'string' ? (bus.state[PEN_COLOR_UI_STATE_KEY] as string) : '#333333'
+  const penThickness = typeof bus.state[PEN_THICKNESS_UI_STATE_KEY] === 'number' ? (bus.state[PEN_THICKNESS_UI_STATE_KEY] as number) : 6
+  const eraserThickness = typeof bus.state[ERASER_THICKNESS_UI_STATE_KEY] === 'number' ? (bus.state[ERASER_THICKNESS_UI_STATE_KEY] as number) : 18
+  const eraserType = bus.state[ERASER_TYPE_UI_STATE_KEY] === 'stroke' ? 'stroke' : 'pixel'
 
   const effectiveStroke = useMemo(() => {
     const common = { curve: true as const, strokeCap: 'round', strokeJoin: 'round' }
@@ -339,17 +305,15 @@ export function AnnotationOverlayApp(props: AnnotationOverlayAppProps) {
     eraserThicknessRef.current = eraserThickness
   }, [eraserThickness])
 
-  const appModeRaw = props.forcedAppMode ?? (useFrontend ? frontendState!.state.appMode : bus.state[APP_MODE_UI_STATE_KEY])
+  const appModeRaw = props.forcedAppMode ?? bus.state[APP_MODE_UI_STATE_KEY]
   const appMode = appModeRaw === 'whiteboard' ? 'whiteboard' : appModeRaw === 'video-show' ? 'video-show' : 'toolbar'
   const isWhiteboardLike = appMode === 'whiteboard' || appMode === 'video-show'
   const shouldFreezeScreen = appMode === 'toolbar' && tool !== 'mouse' && leaferSettings.freezeScreen
   const rendererEngine = leaferSettings.rendererEngine ?? 'canvas2d'
 
   useEffect(() => {
-    // 纯前端模式不需要通知后端窗口输入状态
-    if (useFrontend) return
     void postCommand('win.setAnnotationInput', { enabled: isWhiteboardLike ? true : tool !== 'mouse' })
-  }, [tool, isWhiteboardLike, useFrontend])
+  }, [tool, isWhiteboardLike])
 
   useEffect(() => {
     if (!shouldFreezeScreen) {
@@ -374,10 +338,9 @@ export function AnnotationOverlayApp(props: AnnotationOverlayAppProps) {
     }
   }, [shouldFreezeScreen])
 
-  // 撤销/重做/清除页面的版本号：纯前端模式使用前端状态，否则使用后端状态
-  const undoRevRaw = useFrontend ? frontendState!.state.undoRev : bus.state[UNDO_REV_UI_STATE_KEY]
-  const redoRevRaw = useFrontend ? frontendState!.state.redoRev : bus.state[REDO_REV_UI_STATE_KEY]
-  const clearRevRaw = useFrontend ? frontendState!.state.clearRev : bus.state[CLEAR_PAGE_REV_UI_STATE_KEY]
+  const undoRevRaw = bus.state[UNDO_REV_UI_STATE_KEY]
+  const redoRevRaw = bus.state[REDO_REV_UI_STATE_KEY]
+  const clearRevRaw = bus.state[CLEAR_PAGE_REV_UI_STATE_KEY]
   const notesReloadRevRaw = bus.state[NOTES_RELOAD_REV_UI_STATE_KEY]
   const undoRev = typeof undoRevRaw === 'number' ? undoRevRaw : typeof undoRevRaw === 'string' ? Number(undoRevRaw) : 0
   const redoRev = typeof redoRevRaw === 'number' ? redoRevRaw : typeof redoRevRaw === 'string' ? Number(redoRevRaw) : 0
@@ -429,9 +392,8 @@ export function AnnotationOverlayApp(props: AnnotationOverlayAppProps) {
     api.reloadNotes?.()
   }, [notesReloadRev])
 
-  // 笔记页面索引和总数：纯前端模式使用前端状态，否则使用后端状态
-  const notesPageIndexRaw = useFrontend ? frontendState!.state.notesPageIndex : bus.state[NOTES_PAGE_INDEX_UI_STATE_KEY]
-  const notesPageTotalRaw = useFrontend ? frontendState!.state.notesPageTotal : bus.state[NOTES_PAGE_TOTAL_UI_STATE_KEY]
+  const notesPageIndexRaw = bus.state[NOTES_PAGE_INDEX_UI_STATE_KEY]
+  const notesPageTotalRaw = bus.state[NOTES_PAGE_TOTAL_UI_STATE_KEY]
   const notesPageIndex = typeof notesPageIndexRaw === 'number' ? notesPageIndexRaw : typeof notesPageIndexRaw === 'string' ? Number(notesPageIndexRaw) : 0
   const notesPageTotal = typeof notesPageTotalRaw === 'number' ? notesPageTotalRaw : typeof notesPageTotalRaw === 'string' ? Number(notesPageTotalRaw) : 1
   const lastNotesPageIndexRef = useRef<number | null>(null)
@@ -1339,8 +1301,6 @@ struct VSOut {
       const index = Number.isFinite(nextIndex) ? Math.max(0, Math.floor(nextIndex)) : 0
       if (notesBook.pages.length < total) {
         while (notesBook.pages.length < total) notesBook.pages.push(createEmptyDocV1())
-      } else if (notesBook.pages.length > total) {
-        notesBook.pages.length = total
       }
       const boundedIndex = Math.max(0, Math.min(total - 1, index))
       notesPageTotal = total
@@ -1389,7 +1349,7 @@ struct VSOut {
       })()
     }
 
-    if (rendererEngine === 'canvas2d') {
+    if (rendererEngine === 'canvas2d' && (leaferSettings as any).legacyLeaferCanvas === true) {
       const rect = view.getBoundingClientRect()
       const contextSettings = { desynchronized: true, alpha: true } as any
       const leafer = new Leafer(
@@ -1400,10 +1360,22 @@ struct VSOut {
           contextSettings
         } as any
       )
+      let inputView: HTMLElement = view
       try {
         const c = view.querySelector('canvas') as HTMLCanvasElement | null
-        if (c) c.style.background = 'transparent'
+        if (c) {
+          c.style.background = 'transparent'
+          inputView = c
+        }
       } catch {}
+
+      const requestLeaferRender = () => {
+        try {
+          const api = leafer as any
+          if (typeof api.forceRender === 'function') api.forceRender()
+          else if (typeof api.render === 'function') api.render()
+        } catch {}
+      }
 
       type CanvasNode = Line | Polygon
       type Action =
@@ -1479,9 +1451,7 @@ struct VSOut {
             }
           }
           if (expired.length) removeNodes(expired)
-          try {
-            ;(leafer as any).forceRender?.()
-          } catch {}
+          requestLeaferRender()
           ensureLaserFadeTick()
         })
       }
@@ -1563,11 +1533,14 @@ struct VSOut {
       }
 
       const addNodes = (nodes: CanvasNode[]) => {
+        let changed = false
         for (const node of nodes) {
           leafer.add(node)
           live.add(node)
           order.push(node)
+          changed = true
         }
+        if (changed) requestLeaferRender()
       }
 
       const removeNodes = (nodes: CanvasNode[]) => {
@@ -1582,6 +1555,7 @@ struct VSOut {
         for (let i = order.length - 1; i >= 0; i--) {
           if (set.has(order[i])) order.splice(i, 1)
         }
+        if (set.size) requestLeaferRender()
       }
 
       const record = (action: Action) => {
@@ -1603,9 +1577,7 @@ struct VSOut {
             if (!meta || !points) continue
             applyMetaPointsToNode(node, meta, points.slice())
           }
-          try {
-            ;(leafer as any).forceRender?.()
-          } catch {}
+          requestLeaferRender()
         }
         history.redo.push(action)
         schedulePersist()
@@ -1624,9 +1596,7 @@ struct VSOut {
             if (!meta || !points) continue
             applyMetaPointsToNode(node, meta, points.slice())
           }
-          try {
-            ;(leafer as any).forceRender?.()
-          } catch {}
+          requestLeaferRender()
         }
         history.undo.push(action)
         schedulePersist()
@@ -1704,9 +1674,7 @@ struct VSOut {
         ensureBookShape(boundedIndex, boundedTotal)
         loadDoc(notesBook.pages[notesPageIndex] ?? createEmptyDocV1())
         putKv(notesKvKey, notesBook).catch(() => undefined)
-        try {
-          ;(leafer as any).forceRender?.()
-        } catch {}
+        requestLeaferRender()
       }
 
       apiRef.current = { undo, redo, clear, setPage, reloadNotes: () => void hydrate() }
@@ -1727,28 +1695,20 @@ struct VSOut {
           } else if (isPersistedAnnotationDocV1(loaded)) {
             notesBook = { version: 2, currentPage: 0, pages: [loaded] }
           } else {
-            ensureBookShape(0, 1)
+            ensureBookShape(notesPageIndex, notesPageTotal)
             loadDoc(notesBook.pages[notesPageIndex] ?? createEmptyDocV1())
             putKv(notesKvKey, notesBook).catch(() => undefined)
-            void putUiStateKey(UI_STATE_APP_WINDOW_ID, NOTES_PAGE_TOTAL_UI_STATE_KEY, notesPageTotal)
-            void putUiStateKey(UI_STATE_APP_WINDOW_ID, NOTES_PAGE_INDEX_UI_STATE_KEY, notesPageIndex)
             return
           }
 
-          const initialTotal = Math.max(1, notesBook.pages.length)
-          const initialIndex = Number.isFinite(notesBook.currentPage) ? notesBook.currentPage : 0
-          ensureBookShape(initialIndex, initialTotal)
+          ensureBookShape(notesPageIndex, notesPageTotal)
           loadDoc(notesBook.pages[notesPageIndex] ?? createEmptyDocV1())
           putKv(notesKvKey, notesBook).catch(() => undefined)
-          void putUiStateKey(UI_STATE_APP_WINDOW_ID, NOTES_PAGE_TOTAL_UI_STATE_KEY, notesPageTotal)
-          void putUiStateKey(UI_STATE_APP_WINDOW_ID, NOTES_PAGE_INDEX_UI_STATE_KEY, notesPageIndex)
         } catch {
           return
         } finally {
           hydrated = true
-          try {
-            ;(leafer as any).forceRender?.()
-          } catch {}
+          requestLeaferRender()
         }
       }
       void hydrate()
@@ -1804,9 +1764,7 @@ struct VSOut {
         ;(leafer as any).scaleY = camScale
         ;(leafer as any).rotation = (camRot * 180) / Math.PI
         publishVideoShowView()
-        try {
-          ;(leafer as any).forceRender?.()
-        } catch {}
+        requestLeaferRender()
       }
 
       const getClientPoint = (e: PointerEvent) => {
@@ -1830,6 +1788,22 @@ struct VSOut {
       const getPoint = (e: PointerEvent) => {
         const { cx, cy } = getClientPoint(e)
         return clientToWorld(cx, cy)
+      }
+
+      const pointerCaptureTargets = new Map<number, HTMLElement>()
+      const capturePointer = (e: PointerEvent) => {
+        const target = e.currentTarget instanceof HTMLElement ? e.currentTarget : inputView
+        try {
+          target.setPointerCapture(e.pointerId)
+          pointerCaptureTargets.set(e.pointerId, target)
+        } catch {}
+      }
+      const releasePointer = (e: PointerEvent) => {
+        const target = pointerCaptureTargets.get(e.pointerId) ?? (e.currentTarget instanceof HTMLElement ? e.currentTarget : inputView)
+        try {
+          target.releasePointerCapture(e.pointerId)
+        } catch {}
+        pointerCaptureTargets.delete(e.pointerId)
       }
 
       type Selection = {
@@ -1952,9 +1926,7 @@ struct VSOut {
           )
           leafer.add(selectionCurve)
         }
-        try {
-          ;(leafer as any).forceRender?.()
-        } catch {}
+        requestLeaferRender()
       }
 
       const setSelection = (nodes: CanvasNode[] | null, kind: 'mouse' | 'touch' = 'mouse') => {
@@ -2145,9 +2117,7 @@ struct VSOut {
         }
         syncSelectionBounds()
         updateSelectionOverlays()
-        try {
-          ;(leafer as any).forceRender?.()
-        } catch {}
+        requestLeaferRender()
       }
 
       const beginSelectionTransform = (pointerId: number, mode: 'move' | 'scale' | 'rotate', x: number, y: number) => {
@@ -2259,9 +2229,7 @@ struct VSOut {
           camY = cy - camScale * (mouseToolOp.anchorWorldX * sin + mouseToolOp.anchorWorldY * cos)
           applyCamera()
           updateSelectionOverlays()
-          try {
-            ;(leafer as any).forceRender?.()
-          } catch {}
+          requestLeaferRender()
           return
         }
 
@@ -2355,6 +2323,7 @@ struct VSOut {
               }
               ;(current.glowLine as any).points = baked
             }
+            requestLeaferRender()
             return
           }
 
@@ -2406,13 +2375,14 @@ struct VSOut {
             removeNodes(current.bakedLines.slice(nextLines.length))
           }
           current.bakedLines = nextLines
+          requestLeaferRender()
         })
       }
 
       const onPointerDown = (e: PointerEvent) => {
         if (!hydrated) return
         if (toolRef.current === 'mouse') {
-          view.setPointerCapture(e.pointerId)
+          capturePointer(e)
           if (e.pointerType === 'touch') {
             const { cx, cy } = getClientPoint(e)
             touchPoints.set(e.pointerId, { cx, cy })
@@ -2458,7 +2428,7 @@ struct VSOut {
           return
         }
         if (!multiTouchRef.current && sessions.size > 0) return
-        view.setPointerCapture(e.pointerId)
+        capturePointer(e)
         const { x, y } = getPoint(e)
         const laser = toolRef.current === 'pen' && penTypeRef.current === 'laser'
         const session = {
@@ -2577,9 +2547,7 @@ struct VSOut {
             const { x, y } = getPoint(e)
             mouseToolOp.points.push(x, y)
             updateLassoPreview(mouseToolOp.points)
-            try {
-              ;(leafer as any).forceRender?.()
-            } catch {}
+            requestLeaferRender()
             return
           }
 
@@ -2692,6 +2660,7 @@ struct VSOut {
           if (session.glowLine) {
             ;(session.glowLine as any).points = session.points
           }
+          requestLeaferRender()
           maybeScheduleBake(e.pointerId)
           return
         }
@@ -2705,6 +2674,7 @@ struct VSOut {
           recomputeBounds(meta, tail)
         }
         ;(session.line as any).points = tail
+        requestLeaferRender()
         maybeScheduleBake(e.pointerId)
       }
 
@@ -2714,9 +2684,7 @@ struct VSOut {
         sessions.delete(e.pointerId)
         const activeLine = session.line
         const erased = session.erased
-        try {
-          view.releasePointerCapture(e.pointerId)
-        } catch {}
+        releasePointer(e)
 
         if (erased.length) record({ kind: 'remove', nodes: erased })
         else if (activeLine) {
@@ -2725,6 +2693,7 @@ struct VSOut {
             if (session.glowLine) nodes.push(session.glowLine)
             nodes.push(activeLine)
             startLaserFade(nodes)
+            requestLeaferRender()
             return
           }
           if (session.nibDynamic) {
@@ -2766,6 +2735,7 @@ struct VSOut {
             }
             record({ kind: 'add', nodes: next })
             if (postBakeOptimizeOnceRef.current && shouldOptimize) consumePostBakeOptimizeOnce()
+            requestLeaferRender()
             return
           }
 
@@ -2823,6 +2793,7 @@ struct VSOut {
                 }
                 if (next.length) record({ kind: 'add', nodes: next })
                 if (postBakeOptimizeOnceRef.current) consumePostBakeOptimizeOnce()
+                requestLeaferRender()
                 return
               }
               if (shouldPerfectFreehand) {
@@ -2848,6 +2819,7 @@ struct VSOut {
                   addNodes([poly])
                   record({ kind: 'add', nodes: [poly] })
                   if (postBakeOptimizeOnceRef.current) consumePostBakeOptimizeOnce()
+                  requestLeaferRender()
                   return
                 }
                 const line = new Line({ points: post.points, ...session.stroke, strokeWidth: sw } as any)
@@ -2859,6 +2831,7 @@ struct VSOut {
                 addNodes([line])
                 record({ kind: 'add', nodes: [line] })
                 if (postBakeOptimizeOnceRef.current) consumePostBakeOptimizeOnce()
+                requestLeaferRender()
                 return
               }
               if (meta) {
@@ -2867,6 +2840,7 @@ struct VSOut {
               }
               ;(activeLine as any).points = post.points
               if (postBakeOptimizeOnceRef.current) consumePostBakeOptimizeOnce()
+              requestLeaferRender()
             } else {
               if (shouldPerfectFreehand) {
                 removeNodes([activeLine])
@@ -2891,6 +2865,7 @@ struct VSOut {
                   addNodes([poly])
                   record({ kind: 'add', nodes: [poly] })
                   if (postBakeOptimizeOnceRef.current) consumePostBakeOptimizeOnce()
+                  requestLeaferRender()
                   return
                 }
                 const line = new Line({ points: baked, ...session.stroke, strokeWidth: sw } as any)
@@ -2902,6 +2877,7 @@ struct VSOut {
                 addNodes([line])
                 record({ kind: 'add', nodes: [line] })
                 if (postBakeOptimizeOnceRef.current) consumePostBakeOptimizeOnce()
+                requestLeaferRender()
                 return
               }
               if (meta) {
@@ -2909,6 +2885,7 @@ struct VSOut {
                 recomputeBounds(meta, baked)
               }
               ;(activeLine as any).points = baked
+              requestLeaferRender()
             }
           }
           record({ kind: 'add', nodes: [activeLine] })
@@ -2921,23 +2898,17 @@ struct VSOut {
           return
         }
         if (mouseToolOp.kind === 'transform' && mouseToolOp.pointerId === e.pointerId) {
-          try {
-            view.releasePointerCapture(e.pointerId)
-          } catch {}
+          releasePointer(e)
           finishSelectionTransform()
           return
         }
         if (mouseToolOp.kind === 'pan' && mouseToolOp.pointerId === e.pointerId) {
-          try {
-            view.releasePointerCapture(e.pointerId)
-          } catch {}
+          releasePointer(e)
           mouseToolOp = { kind: 'none' }
           return
         }
         if (mouseToolOp.kind === 'lasso' && mouseToolOp.pointerId === e.pointerId) {
-          try {
-            view.releasePointerCapture(e.pointerId)
-          } catch {}
+          releasePointer(e)
           if (e.pointerType === 'touch') touchPoints.delete(e.pointerId)
           const pts = mouseToolOp.points.slice()
           mouseToolOp = { kind: 'none' }
@@ -2957,9 +2928,7 @@ struct VSOut {
           touchPoints.delete(e.pointerId)
           if (mouseToolOp.kind === 'pinch') {
             if (!touchPoints.has(mouseToolOp.ids[0]) || !touchPoints.has(mouseToolOp.ids[1])) {
-              try {
-                view.releasePointerCapture(e.pointerId)
-              } catch {}
+              releasePointer(e)
               if (mouseToolOp.target === 'selection' && selection) {
                 const nodes = selection.nodes.slice()
                 const beforePoints = mouseToolOp.before.map((p) => p.slice())
@@ -2996,9 +2965,7 @@ struct VSOut {
           mouseToolOp = { kind: 'none' }
         }
         else mouseToolOp = { kind: 'none' }
-        try {
-          view.releasePointerCapture(e.pointerId)
-        } catch {}
+        releasePointer(e)
       }
 
       const onWheel = (e: WheelEvent) => {
@@ -3035,23 +3002,23 @@ struct VSOut {
       })
       ro.observe(view)
 
-      view.addEventListener('pointerdown', onPointerDown)
-      view.addEventListener('pointermove', onPointerMove)
-      view.addEventListener('pointerup', onPointerUp)
-      view.addEventListener('pointercancel', onPointerCancel)
-      view.addEventListener('wheel', onWheel, { passive: false } as any)
-      view.addEventListener('contextmenu', onContextMenu)
+      inputView.addEventListener('pointerdown', onPointerDown)
+      inputView.addEventListener('pointermove', onPointerMove)
+      inputView.addEventListener('pointerup', onPointerUp)
+      inputView.addEventListener('pointercancel', onPointerCancel)
+      inputView.addEventListener('wheel', onWheel, { passive: false } as any)
+      inputView.addEventListener('contextmenu', onContextMenu)
 
       return () => {
         if (persistTimer !== null) window.clearTimeout(persistTimer)
         persistNow()
         ro.disconnect()
-        view.removeEventListener('pointerdown', onPointerDown)
-        view.removeEventListener('pointermove', onPointerMove)
-        view.removeEventListener('pointerup', onPointerUp)
-        view.removeEventListener('pointercancel', onPointerCancel)
-        view.removeEventListener('wheel', onWheel as any)
-        view.removeEventListener('contextmenu', onContextMenu as any)
+        inputView.removeEventListener('pointerdown', onPointerDown)
+        inputView.removeEventListener('pointermove', onPointerMove)
+        inputView.removeEventListener('pointerup', onPointerUp)
+        inputView.removeEventListener('pointercancel', onPointerCancel)
+        inputView.removeEventListener('wheel', onWheel as any)
+        inputView.removeEventListener('contextmenu', onContextMenu as any)
         apiRef.current = null
         try {
           view.replaceChildren()
@@ -3236,21 +3203,15 @@ struct VSOut {
         } else if (isPersistedAnnotationDocV1(loaded)) {
           notesBook = { version: 2, currentPage: 0, pages: [loaded] }
         } else {
-          ensureBookShape(0, 1)
+          ensureBookShape(notesPageIndex, notesPageTotal)
           loadDoc(notesBook.pages[notesPageIndex] ?? createEmptyDocV1())
           putKv(notesKvKey, notesBook).catch(() => undefined)
-          void putUiStateKey(UI_STATE_APP_WINDOW_ID, NOTES_PAGE_TOTAL_UI_STATE_KEY, notesPageTotal)
-          void putUiStateKey(UI_STATE_APP_WINDOW_ID, NOTES_PAGE_INDEX_UI_STATE_KEY, notesPageIndex)
           return
         }
 
-        const initialTotal = Math.max(1, notesBook.pages.length)
-        const initialIndex = Number.isFinite(notesBook.currentPage) ? notesBook.currentPage : 0
-        ensureBookShape(initialIndex, initialTotal)
+        ensureBookShape(notesPageIndex, notesPageTotal)
         loadDoc(notesBook.pages[notesPageIndex] ?? createEmptyDocV1())
         putKv(notesKvKey, notesBook).catch(() => undefined)
-        void putUiStateKey(UI_STATE_APP_WINDOW_ID, NOTES_PAGE_TOTAL_UI_STATE_KEY, notesPageTotal)
-        void putUiStateKey(UI_STATE_APP_WINDOW_ID, NOTES_PAGE_INDEX_UI_STATE_KEY, notesPageIndex)
       } catch {
         return
       } finally {
@@ -3553,6 +3514,13 @@ struct VSOut {
       return clientToWorld(cx, cy)
     }
 
+    const getPointFromClient = (clientX: number, clientY: number) => {
+      const r = view.getBoundingClientRect()
+      const cx = clientX - r.left
+      const cy = clientY - r.top
+      return clientToWorld(cx, cy)
+    }
+
     const applySmoothing = (session: { smoothX: number; smoothY: number; hasSmooth: boolean; lastTime: number }, x: number, y: number) => {
       const now = performance.now()
       const dt = Math.max(1, now - (session.lastTime || now))
@@ -3668,8 +3636,74 @@ struct VSOut {
 
     let cancelled = false
     type DrawNode = Pick<RenderNode, 'role' | 'pfh' | 'strokeWidth' | 'points' | 'color' | 'fadeStartAt' | 'fadeDurationMs'>
+    const useGpuCanvas = rendererEngine === 'webgl' || rendererEngine === 'webgpu'
     let webgpu: null | { configure: () => void; draw: (nodes: DrawNode[]) => void } = null
-    const webgl = canvas ? createWebGLRenderer(canvas) : null
+    const webgl = canvas && useGpuCanvas ? createWebGLRenderer(canvas) : null
+    const canvas2d = canvas && !useGpuCanvas ? (canvas.getContext('2d', { alpha: true, desynchronized: true } as any) as CanvasRenderingContext2D | null) : null
+
+    const cssRgba = (color: [number, number, number, number]) => {
+      const r = Math.max(0, Math.min(255, Math.round(color[0] * 255)))
+      const g = Math.max(0, Math.min(255, Math.round(color[1] * 255)))
+      const b = Math.max(0, Math.min(255, Math.round(color[2] * 255)))
+      const a = Math.max(0, Math.min(1, color[3]))
+      return `rgba(${r}, ${g}, ${b}, ${a})`
+    }
+
+    const strokeCanvasPath = (ctx: CanvasRenderingContext2D, points: number[]) => {
+      if (points.length < 4) return false
+      ctx.beginPath()
+      ctx.moveTo(points[0], points[1])
+      for (let i = 2; i + 1 < points.length; i += 2) ctx.lineTo(points[i], points[i + 1])
+      return true
+    }
+
+    const fillCanvasOutline = (ctx: CanvasRenderingContext2D, outline: [number, number][]) => {
+      if (outline.length < 3) return false
+      ctx.beginPath()
+      ctx.moveTo(outline[0][0], outline[0][1])
+      for (let i = 1; i < outline.length; i++) ctx.lineTo(outline[i][0], outline[i][1])
+      ctx.closePath()
+      return true
+    }
+
+    const drawCanvas2D = (nodes: DrawNode[]) => {
+      if (!canvas || !canvas2d) return
+      const dpr = Math.max(1, globalThis.devicePixelRatio || 1)
+      const cssW = Math.max(1, canvas.width / dpr)
+      const cssH = Math.max(1, canvas.height / dpr)
+      const ctx = canvas2d
+      ctx.save()
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+      ctx.clearRect(0, 0, cssW, cssH)
+      ctx.lineCap = 'round'
+      ctx.lineJoin = 'round'
+
+      for (const node of nodes) {
+        if (!Array.isArray(node.points) || node.points.length < 4) continue
+        const erasing = node.role === 'eraserPixel'
+        ctx.globalCompositeOperation = erasing ? 'destination-out' : 'source-over'
+        ctx.globalAlpha = 1
+        if (node.pfh && !erasing) {
+          const outline = getStroke(pointsToPerfectFreehandInput(node.points), {
+            size: node.strokeWidth,
+            thinning: 0.7,
+            smoothing: 0.6,
+            streamline: 0.5,
+            simulatePressure: true
+          }) as unknown as [number, number][]
+          if (!fillCanvasOutline(ctx, outline)) continue
+          ctx.fillStyle = cssRgba(node.color)
+          ctx.fill()
+          continue
+        }
+        if (!strokeCanvasPath(ctx, node.points)) continue
+        ctx.strokeStyle = erasing ? 'rgba(0, 0, 0, 1)' : cssRgba(node.color)
+        ctx.lineWidth = Math.max(0.1, node.strokeWidth)
+        ctx.stroke()
+      }
+
+      ctx.restore()
+    }
 
     const init = async () => {
       if (canvas && rendererEngine === 'webgpu') {
@@ -3724,8 +3758,10 @@ struct VSOut {
         if (webgl) {
           try {
             webgl.draw(screenNodes ?? nodes)
+            return
           } catch {}
         }
+        drawCanvas2D(screenNodes ?? nodes)
       })
     }
     void init()
@@ -4177,6 +4213,111 @@ struct VSOut {
 
     applyCamera()
 
+    let activeMouseSessionPointerId: number | null = null
+
+    const processDrawingMove = (pointerId: number, samples: Array<{ clientX: number; clientY: number }>) => {
+      const session = sessions.get(pointerId)
+      if (!session) return
+      let didAppend = false
+      let didErase = false
+
+      for (const ev of samples) {
+        const { x, y } = getPointFromClient(ev.clientX, ev.clientY)
+        const lastX = session.points[session.points.length - 2]
+        const lastY = session.points[session.points.length - 1]
+        const p = applySmoothing(session, x, y)
+        const dx = p.x - lastX
+        const dy = p.y - lastY
+        const dist = Math.hypot(dx, dy)
+        const minMove = clamp(session.strokeWidth * 0.04, 0.15, 0.45)
+        if (dist < minMove) continue
+        const speed = dist / Math.max(1, p.dt)
+        const baseStep = clamp(session.strokeWidth * 0.34, 0.7, 3.2)
+        const step = clamp(baseStep / (1 + speed * 0.08), 0.35, baseStep)
+        const cap = clamp(Math.floor(10 + speed * 8), 10, 42)
+        const appendedRaw = appendInterpolatedPoints(session.rawPoints, p.x, p.y, step, cap)
+        const appended = appendInterpolatedPoints(session.points, p.x, p.y, step, cap)
+        didAppend = true
+
+        const appendedPairs = Math.floor(appendedRaw.length / 2)
+        if (appendedPairs > 0) {
+          const prevT = session.rawTimes.length ? session.rawTimes[session.rawTimes.length - 1] : p.now
+          for (let i = 1; i <= appendedPairs; i++) {
+            session.rawTimes.push(prevT + (p.dt * i) / appendedPairs)
+          }
+        }
+
+        if (session.erasingStroke) {
+          didErase = true
+          const radius = eraserThicknessRef.current * 0.5
+          for (const node of Array.from(live)) {
+            if (node.role !== 'stroke') continue
+            const gid = node.meta.groupId
+            if (gid !== undefined) {
+              if (session.erasedGroupIds.has(gid)) continue
+              if (!hitsLineAtPoint(node.meta, x, y, radius)) continue
+              session.erasedGroupIds.add(gid)
+              const groupNodes: RenderNode[] = []
+              for (const other of Array.from(live)) {
+                if (other.role !== 'stroke') continue
+                if (other.meta.groupId !== gid) continue
+                if (session.erasedSet.has(other)) continue
+                session.erasedSet.add(other)
+                session.erased.push(other)
+                groupNodes.push(other)
+              }
+              removeNodes(groupNodes)
+              continue
+            }
+            if (session.erasedSet.has(node)) continue
+            if (!hitsLineAtPoint(node.meta, x, y, radius)) continue
+            session.erasedSet.add(node)
+            session.erased.push(node)
+            removeNodes([node])
+          }
+          continue
+        }
+
+        if (!session.node) continue
+        if (!session.nibDynamic) {
+          session.node.points = session.points
+          session.node.meta.points = session.points
+          for (let i = 0; i + 1 < appended.length; i += 2) updateBounds(session.node.meta, appended[i], appended[i + 1])
+          markSvgDirty(session.node)
+          if (session.glowNode) {
+            session.glowNode.points = session.points
+            session.glowNode.meta.points = session.points
+            for (let i = 0; i + 1 < appended.length; i += 2) updateBounds(session.glowNode.meta, appended[i], appended[i + 1])
+            markSvgDirty(session.glowNode)
+          }
+          continue
+        }
+      }
+
+      if (didErase) {
+        requestRender()
+        return
+      }
+      if (!didAppend) return
+      if (!session.node) return
+
+      if (!session.nibDynamic) {
+        requestRender()
+        maybeScheduleBake(pointerId)
+        return
+      }
+
+      const tailCoords = BAKE_TAIL_POINTS * 2
+      const tailStart = session.bakedNodes.length ? Math.max(0, session.points.length - tailCoords - 2) : 0
+      const tail = session.points.slice(tailStart)
+      session.node.points = tail
+      session.node.meta.points = tail
+      recomputeBounds(session.node.meta, tail)
+      markSvgDirty(session.node)
+      requestRender()
+      maybeScheduleBake(pointerId)
+    }
+
     const onPointerDown = (e: PointerEvent) => {
       if (!hydrated) return
       if (toolRef.current === 'mouse') {
@@ -4258,6 +4399,7 @@ struct VSOut {
       session.rawTimes = [p0.now, p0.now]
       session.points = session.rawPoints.slice()
       sessions.set(e.pointerId, session)
+      if (e.pointerType === 'mouse') activeMouseSessionPointerId = e.pointerId
 
       if (session.erasingStroke) {
         const radius = eraserThicknessRef.current * 0.5
@@ -4381,109 +4523,21 @@ struct VSOut {
 
         return
       }
-      const session = sessions.get(e.pointerId)
-      if (!session) return
       const evs = typeof (e as any).getCoalescedEvents === 'function' ? (e as any).getCoalescedEvents() : [e]
-      let didAppend = false
-      let didErase = false
+      processDrawingMove(e.pointerId, evs as Array<{ clientX: number; clientY: number }>)
+    }
 
-      for (const ev of evs as PointerEvent[]) {
-        const { x, y } = getPoint(ev)
-        const lastX = session.points[session.points.length - 2]
-        const lastY = session.points[session.points.length - 1]
-        const p = applySmoothing(session, x, y)
-        const dx = p.x - lastX
-        const dy = p.y - lastY
-        const dist = Math.hypot(dx, dy)
-        const minMove = clamp(session.strokeWidth * 0.04, 0.15, 0.45)
-        if (dist < minMove) continue
-        const speed = dist / Math.max(1, p.dt)
-        const baseStep = clamp(session.strokeWidth * 0.34, 0.7, 3.2)
-        const step = clamp(baseStep / (1 + speed * 0.08), 0.35, baseStep)
-        const cap = clamp(Math.floor(10 + speed * 8), 10, 42)
-        const appendedRaw = appendInterpolatedPoints(session.rawPoints, p.x, p.y, step, cap)
-        const appended = appendInterpolatedPoints(session.points, p.x, p.y, step, cap)
-        didAppend = true
-
-        const appendedPairs = Math.floor(appendedRaw.length / 2)
-        if (appendedPairs > 0) {
-          const prevT = session.rawTimes.length ? session.rawTimes[session.rawTimes.length - 1] : p.now
-          for (let i = 1; i <= appendedPairs; i++) {
-            session.rawTimes.push(prevT + (p.dt * i) / appendedPairs)
-          }
-        }
-
-        if (session.erasingStroke) {
-          didErase = true
-          const radius = eraserThicknessRef.current * 0.5
-          for (const node of Array.from(live)) {
-            if (node.role !== 'stroke') continue
-            const gid = node.meta.groupId
-            if (gid !== undefined) {
-              if (session.erasedGroupIds.has(gid)) continue
-              if (!hitsLineAtPoint(node.meta, x, y, radius)) continue
-              session.erasedGroupIds.add(gid)
-              const groupNodes: RenderNode[] = []
-              for (const other of Array.from(live)) {
-                if (other.role !== 'stroke') continue
-                if (other.meta.groupId !== gid) continue
-                if (session.erasedSet.has(other)) continue
-                session.erasedSet.add(other)
-                session.erased.push(other)
-                groupNodes.push(other)
-              }
-              removeNodes(groupNodes)
-              continue
-            }
-            if (session.erasedSet.has(node)) continue
-            if (!hitsLineAtPoint(node.meta, x, y, radius)) continue
-            session.erasedSet.add(node)
-            session.erased.push(node)
-            removeNodes([node])
-          }
-          continue
-        }
-
-        if (!session.node) continue
-        if (!session.nibDynamic) {
-          for (let i = 0; i + 1 < appended.length; i += 2) updateBounds(session.node.meta, appended[i], appended[i + 1])
-          markSvgDirty(session.node)
-          if (session.glowNode) {
-            for (let i = 0; i + 1 < appended.length; i += 2) updateBounds(session.glowNode.meta, appended[i], appended[i + 1])
-            markSvgDirty(session.glowNode)
-          }
-          continue
-        }
-      }
-
-      if (didErase) {
-        requestRender()
-        return
-      }
-      if (!didAppend) return
-      if (!session.node) return
-
-      if (!session.nibDynamic) {
-        requestRender()
-        maybeScheduleBake(e.pointerId)
-        return
-      }
-
-      const tailCoords = BAKE_TAIL_POINTS * 2
-      const tailStart = session.bakedNodes.length ? Math.max(0, session.points.length - tailCoords - 2) : 0
-      const tail = session.points.slice(tailStart)
-      session.node.points = tail
-      session.node.meta.points = tail
-      recomputeBounds(session.node.meta, tail)
-      markSvgDirty(session.node)
-      requestRender()
-      maybeScheduleBake(e.pointerId)
+    const onMouseMove = (e: MouseEvent) => {
+      if (activeMouseSessionPointerId === null) return
+      if ((e.buttons & 1) !== 1) return
+      processDrawingMove(activeMouseSessionPointerId, [e])
     }
 
     const finish = (e: PointerEvent) => {
       const session = sessions.get(e.pointerId)
       if (!session) return
       sessions.delete(e.pointerId)
+      if (activeMouseSessionPointerId === e.pointerId) activeMouseSessionPointerId = null
       const active = session.node
       const erased = session.erased
       try {
@@ -4596,6 +4650,7 @@ struct VSOut {
     }
 
     const onPointerUp = (e: PointerEvent) => {
+      if (activeMouseSessionPointerId === e.pointerId) activeMouseSessionPointerId = null
       if (sessions.has(e.pointerId)) {
         finish(e)
         return
@@ -4656,6 +4711,7 @@ struct VSOut {
     }
 
     const onPointerCancel = (e: PointerEvent) => {
+      if (activeMouseSessionPointerId === e.pointerId) activeMouseSessionPointerId = null
       if (sessions.has(e.pointerId)) {
         finish(e)
         return
@@ -4715,6 +4771,7 @@ struct VSOut {
     view.addEventListener('pointermove', onPointerMove)
     view.addEventListener('pointerup', onPointerUp)
     view.addEventListener('pointercancel', onPointerCancel)
+    window.addEventListener('mousemove', onMouseMove)
     view.addEventListener('wheel', onWheel, { passive: false } as any)
     view.addEventListener('contextmenu', onContextMenu)
 
@@ -4727,6 +4784,7 @@ struct VSOut {
       view.removeEventListener('pointermove', onPointerMove)
       view.removeEventListener('pointerup', onPointerUp)
       view.removeEventListener('pointercancel', onPointerCancel)
+      window.removeEventListener('mousemove', onMouseMove)
       view.removeEventListener('wheel', onWheel as any)
       view.removeEventListener('contextmenu', onContextMenu as any)
       apiRef.current = null
@@ -4740,6 +4798,9 @@ struct VSOut {
   return (
     <div
       ref={containerRef}
+      data-annotation-tool={tool}
+      data-annotation-app-mode={appMode}
+      data-annotation-renderer={rendererEngine}
       style={{
         width: '100vw',
         height: '100vh',

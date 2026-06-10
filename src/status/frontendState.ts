@@ -154,7 +154,7 @@ function frontendReducer(state: FrontendState, action: FrontendAction): Frontend
   }
 }
 
-interface FrontendStateContextValue {
+export interface FrontendStateContextValue {
   state: FrontendState
   dispatch: React.Dispatch<FrontendAction>
   setTool: (tool: Tool) => void
@@ -173,9 +173,9 @@ interface FrontendStateContextValue {
   hydrate: (partial: Partial<FrontendState>) => void
 }
 
-const FrontendStateContext = createContext<FrontendStateContextValue | null>(null)
+export const FrontendStateContext = createContext<FrontendStateContextValue | null>(null)
 
-interface FrontendStateProviderProps {
+export interface FrontendStateProviderProps {
   children: ReactNode
   initialState?: Partial<FrontendState>
 }
@@ -261,11 +261,7 @@ export function FrontendStateProvider({ children, initialState: initialOverride 
     hydrate
   }
 
-  return (
-    <FrontendStateContext.Provider value={value}>
-      {children}
-    </FrontendStateContext.Provider>
-  )
+  return React.createElement(FrontendStateContext.Provider, { value }, children)
 }
 
 export function useFrontendState(): FrontendStateContextValue {
@@ -274,6 +270,10 @@ export function useFrontendState(): FrontendStateContextValue {
     throw new Error('useFrontendState must be used within a FrontendStateProvider')
   }
   return context
+}
+
+export function useOptionalFrontendState(): FrontendStateContextValue | null {
+  return useContext(FrontendStateContext)
 }
 
 export function useFrontendStateValue(): FrontendState {

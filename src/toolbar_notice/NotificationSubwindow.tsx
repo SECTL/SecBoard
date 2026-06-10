@@ -1,4 +1,4 @@
-import { History20Regular, Checkmark18Regular, Clock20Regular, ArrowSync18Regular, Dismiss18Regular } from '@fluentui/react-icons'
+import { History20Regular, Checkmark20Regular, Clock20Regular, ArrowSync20Regular, Dismiss20Regular } from '@fluentui/react-icons'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { motion, useReducedMotion } from '../Framer_Motion'
 import { Button } from '../button'
@@ -37,7 +37,7 @@ function HistoryIcon() {
 }
 
 function CheckIcon() {
-  return <Checkmark18Regular />
+  return <Checkmark20Regular />
 }
 
 function ClockIcon() {
@@ -45,7 +45,7 @@ function ClockIcon() {
 }
 
 function RestartIcon() {
-  return <ArrowSync18Regular />
+  return <ArrowSync20Regular />
 }
 
 function pad2(v: number): string {
@@ -463,7 +463,7 @@ export function NotificationSubwindow(props: { kind: 'notice' }) {
                 style={{ display: 'flex', alignItems: 'center', gap: 8, flex: '0 0 auto' }}
               >
                 <Button variant="default" size="sm" ariaLabel="关闭通知" title="关闭" onClick={close}>
-                  <Dismiss18Regular />
+                  <Dismiss20Regular />
                 </Button>
                 {isBackendUnavailableNotice ? (
                   <Button

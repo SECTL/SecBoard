@@ -18,8 +18,7 @@ import {
   NOTICE_KIND_UI_STATE_KEY,
   postCommand,
   useAppMode,
-  useUiStateBus,
-  FrontendStateProvider
+  useUiStateBus
 } from '../../status'
 import './web-workspace.css'
 
@@ -474,14 +473,12 @@ function WithAppearance(props: { children: React.ReactNode }) {
   return <>{props.children}</>
 }
 
-const isPureFrontend = (import.meta as any)?.env?.VITE_PURE_FRONTEND === true
-
 export default function App() {
   const content = <WebAppRouter />
 
   return (
     <WithAppearance>
-      {isPureFrontend ? <FrontendStateProvider>{content}</FrontendStateProvider> : content}
+      {content}
     </WithAppearance>
   )
 }

@@ -32,3 +32,5 @@ CREATE TABLE IF NOT EXISTS cunox_files (
 -- 初始化索引
 CREATE INDEX IF NOT EXISTS idx_ui_state_window ON ui_state(window_id);
 CREATE INDEX IF NOT EXISTS idx_events_ts ON events(ts);
+CREATE INDEX IF NOT EXISTS idx_events_type ON events(type);
+CREATE INDEX IF NOT EXISTS idx_ui_state_window_id ON ui_state(window_id);

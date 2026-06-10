@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { ensureWebLanstartAdapter } from './webLanstartAdapter'
 import {
-  APP_MODE_KV_KEY,
   APP_MODE_UI_STATE_KEY,
   APPEARANCE_KV_KEY,
   APPEARANCE_UI_STATE_KEY,
@@ -12,8 +11,6 @@ import {
   ERASER_TYPE_UI_STATE_KEY,
   LEAFER_SETTINGS_KV_KEY,
   LEAFER_SETTINGS_UI_STATE_KEY,
-  NOTES_PAGE_INDEX_UI_STATE_KEY,
-  NOTES_PAGE_TOTAL_UI_STATE_KEY,
   NOTES_RELOAD_REV_UI_STATE_KEY,
   NOTICE_KIND_UI_STATE_KEY,
   CLOCK_TAB_UI_STATE_KEY,
@@ -90,8 +87,10 @@ export {
   type FrontendAction,
   type FrontendStateContextValue,
   type FrontendStateProviderProps,
+  FrontendStateContext,
   FrontendStateProvider,
   useFrontendState,
+  useOptionalFrontendState,
   useFrontendStateValue,
   useTool,
   usePenSettings,
@@ -216,6 +215,41 @@ export type BackendEventItem = {
   ts: number
 }
 
+type LocalUiStateEvent = { type: 'put' | 'delete'; windowId: string; key: string; value?: unknown }
+type LocalUiStateListener = (event: LocalUiStateEvent) => void
+
+const localUiState = new Map<string, Record<string, unknown>>()
+const localUiStateListeners = new Set<LocalUiStateListener>()
+
+function getLocalUiState(windowId: string): Record<string, unknown> {
+  return localUiState.get(windowId) ?? {}
+}
+
+function mergeLocalUiState(windowId: string, state: Record<string, unknown>): void {
+  if (!Object.keys(state).length) return
+  localUiState.set(windowId, { ...getLocalUiState(windowId), ...state })
+}
+
+function putLocalUiStateKey(windowId: string, key: string, value: unknown): void {
+  localUiState.set(windowId, { ...getLocalUiState(windowId), [key]: value })
+  for (const listener of localUiStateListeners) listener({ type: 'put', windowId, key, value })
+}
+
+function deleteLocalUiStateKey(windowId: string, key: string): void {
+  const current = getLocalUiState(windowId)
+  if (!(key in current)) return
+  const { [key]: _drop, ...next } = current
+  localUiState.set(windowId, next)
+  for (const listener of localUiStateListeners) listener({ type: 'delete', windowId, key })
+}
+
+function subscribeLocalUiState(listener: LocalUiStateListener): () => void {
+  localUiStateListeners.add(listener)
+  return () => {
+    localUiStateListeners.delete(listener)
+  }
+}
+
 function getFallbackLanstart() {
   const w = window as any
   if (w.__lanstartFallback) return w.__lanstartFallback as NonNullable<Window['lanstart']>
@@ -324,14 +358,18 @@ export async function selectCunoxImportFile(): Promise<{ file?: string; fileUrl?
 }
 
 export async function getUiState(windowId: string): Promise<Record<string, unknown>> {
-  return await requireLanstart().getUiState(windowId)
+  const state = await requireLanstart().getUiState(windowId)
+  mergeLocalUiState(windowId, state)
+  return { ...getLocalUiState(windowId), ...state }
 }
 
 export async function putUiStateKey(windowId: string, key: string, value: unknown): Promise<void> {
+  putLocalUiStateKey(windowId, key, value)
   await requireLanstart().putUiStateKey(windowId, key, value)
 }
 
 export async function deleteUiStateKey(windowId: string, key: string): Promise<void> {
+  deleteLocalUiStateKey(windowId, key)
   await requireLanstart().deleteUiStateKey(windowId, key)
 }
 
@@ -403,7 +441,7 @@ function coerceString(v: unknown): string {
 export function useUiStateBus(windowId: string, options?: { intervalMs?: number }) {
   const intervalMs = options?.intervalMs ?? 600
   const latestRef = useRef(0)
-  const [state, setState] = useState<Record<string, unknown>>({})
+  const [state, setState] = useState<Record<string, unknown>>(() => getLocalUiState(windowId))
 
   useEffect(() => {
     let cancelled = false
@@ -411,6 +449,7 @@ export function useUiStateBus(windowId: string, options?: { intervalMs?: number 
       try {
         const initial = await getUiState(windowId)
         if (cancelled) return
+        mergeLocalUiState(windowId, initial)
         setState(initial)
       } catch {
         return
@@ -453,7 +492,11 @@ export function useUiStateBus(windowId: string, options?: { intervalMs?: number 
         }
 
         if (!nextPatches.length) return
-        setState((prev) => nextPatches.reduce((acc, patch) => patch(acc), prev))
+        setState((prev) => {
+          const next = nextPatches.reduce((acc, patch) => patch(acc), prev)
+          mergeLocalUiState(windowId, next)
+          return next
+        })
       } catch {
         return
       }
@@ -467,22 +510,38 @@ export function useUiStateBus(windowId: string, options?: { intervalMs?: number 
     }
   }, [intervalMs, windowId])
 
+  useEffect(() => {
+    return subscribeLocalUiState((event) => {
+      if (event.windowId !== windowId) return
+      if (event.type === 'put') {
+        setState((prev) => ({ ...prev, [event.key]: event.value }))
+        return
+      }
+      setState((prev) => {
+        if (!(event.key in prev)) return prev
+        const { [event.key]: _drop, ...rest } = prev
+        return rest
+      })
+    })
+  }, [windowId])
+
   const setKey = async (key: string, value: unknown) => {
-    await putUiStateKey(windowId, key, value)
     setState((prev) => ({ ...prev, [key]: value }))
+    await putUiStateKey(windowId, key, value)
   }
 
   const deleteKey = async (key: string) => {
-    await deleteUiStateKey(windowId, key)
     setState((prev) => {
       if (!(key in prev)) return prev
       const { [key]: _drop, ...rest } = prev
       return rest
     })
+    await deleteUiStateKey(windowId, key)
   }
 
   const refresh = async () => {
     const latest = await getUiState(windowId)
+    mergeLocalUiState(windowId, latest)
     setState(latest)
   }
 
@@ -521,84 +580,19 @@ export function useAppAppearance() {
 }
 
 export function useAppMode() {
-  const [appMode, setAppModeState] = usePersistedState<AppMode>(APP_MODE_KV_KEY, 'whiteboard', {
-    validate: isAppMode
-  })
   const bus = useUiStateBus(UI_STATE_APP_WINDOW_ID)
-  const busRef = useRef(bus)
-  busRef.current = bus
-  const lastBusModeRef = useRef<AppMode | null>(null)
-  const lastRestoredModeRef = useRef<AppMode | null>(null)
-
   const busModeRaw = bus.state[APP_MODE_UI_STATE_KEY]
   const busMode: AppMode | undefined = isAppMode(busModeRaw) ? busModeRaw : undefined
-
-  const readNotesPageState = (snapshot: Record<string, unknown>): { index: number; total: number } => {
-    const totalRaw = snapshot[NOTES_PAGE_TOTAL_UI_STATE_KEY]
-    const totalNum = typeof totalRaw === 'number' ? totalRaw : typeof totalRaw === 'string' ? Number(totalRaw) : NaN
-    const total = Number.isFinite(totalNum) ? Math.max(1, Math.min(2000, Math.floor(totalNum))) : 1
-    const indexRaw = snapshot[NOTES_PAGE_INDEX_UI_STATE_KEY]
-    const indexNum = typeof indexRaw === 'number' ? indexRaw : typeof indexRaw === 'string' ? Number(indexRaw) : NaN
-    const index = Number.isFinite(indexNum) ? Math.max(0, Math.min(total - 1, Math.floor(indexNum))) : 0
-    return { index, total }
-  }
-
-  const notesPageIndexKvKey = (mode: AppMode): string => `notes-page-index:${mode}`
-  const notesPageTotalKvKey = (mode: AppMode): string => `notes-page-total:${mode}`
-
-  const persistNotesPageStateForMode = async (mode: AppMode, snapshot: Record<string, unknown>): Promise<void> => {
-    const { index, total } = readNotesPageState(snapshot)
-    try {
-      await Promise.all([putKv(notesPageIndexKvKey(mode), index), putKv(notesPageTotalKvKey(mode), total)])
-    } catch {}
-  }
-
-  const restoreNotesPageStateForMode = async (mode: AppMode): Promise<void> => {
-    const [indexRes, totalRes] = await Promise.allSettled([getKv<unknown>(notesPageIndexKvKey(mode)), getKv<unknown>(notesPageTotalKvKey(mode))])
-    const indexRaw = indexRes.status === 'fulfilled' ? indexRes.value : undefined
-    const totalRaw = totalRes.status === 'fulfilled' ? totalRes.value : undefined
-    const totalNum = typeof totalRaw === 'number' ? totalRaw : typeof totalRaw === 'string' ? Number(totalRaw) : NaN
-    const total = Number.isFinite(totalNum) ? Math.max(1, Math.min(2000, Math.floor(totalNum))) : 1
-    const indexNum = typeof indexRaw === 'number' ? indexRaw : typeof indexRaw === 'string' ? Number(indexRaw) : NaN
-    const index = Number.isFinite(indexNum) ? Math.max(0, Math.min(total - 1, Math.floor(indexNum))) : 0
-    try {
-      await busRef.current.setKey(NOTES_PAGE_TOTAL_UI_STATE_KEY, total)
-      await busRef.current.setKey(NOTES_PAGE_INDEX_UI_STATE_KEY, index)
-    } catch {}
-  }
+  const appMode = busMode ?? 'whiteboard'
 
   useEffect(() => {
     if (busMode) return
-    busRef.current.setKey(APP_MODE_UI_STATE_KEY, appMode).catch(() => undefined)
     postCommand('settings.setAppMode', { mode: appMode }).catch(() => undefined)
-    restoreNotesPageStateForMode(appMode).catch(() => undefined)
   }, [appMode, busMode])
-
-  useEffect(() => {
-    if (!busMode) return
-    if (busMode === appMode) return
-    setAppModeState(busMode)
-  }, [appMode, busMode, setAppModeState])
-
-  useEffect(() => {
-    if (!busMode) return
-    if (lastRestoredModeRef.current === busMode) return
-
-    const prev = lastBusModeRef.current
-    lastBusModeRef.current = busMode
-    lastRestoredModeRef.current = busMode
-
-    if (prev && prev !== busMode) persistNotesPageStateForMode(prev, bus.state).catch(() => undefined)
-    restoreNotesPageStateForMode(busMode).catch(() => undefined)
-  }, [busMode])
 
   const setAppMode = (next: AppMode) => {
     if (next === appMode) return
-    persistNotesPageStateForMode(appMode, bus.state).catch(() => undefined)
-    setAppModeState(next)
-    bus.setKey(APP_MODE_UI_STATE_KEY, next).catch(() => undefined)
     postCommand('settings.setAppMode', { mode: next }).catch(() => undefined)
-    restoreNotesPageStateForMode(next).catch(() => undefined)
   }
 
   return { appMode, setAppMode }

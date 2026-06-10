@@ -63,6 +63,7 @@ import {
   isFileOrDataUrl,
   isHexColor,
   isWritingFramework,
+  type AppMode,
   type WritingFramework
 } from '../status/keys'
 
@@ -87,6 +88,48 @@ const castPort = Number(process.env.LANSTART_CAST_PORT ?? 3132)
 const castHost = String(process.env.LANSTART_CAST_HOST ?? '0.0.0.0')
 const useStdioRpc = transport !== 'http'
 
+// /cs/* 代理的目标主机白名单；空则回退为 csBaseUrl 自身的主机
+const csAllowedHostsRaw = String(process.env.LANSTART_CS_ALLOW_HOSTS ?? '').trim()
+const csAllowedHosts = csAllowedHostsRaw
+  ? csAllowedHostsRaw.split(',').map((s) => s.trim()).filter(Boolean)
+  : null
+
+function isCsHostAllowed(targetUrl: URL): boolean {
+  if (csAllowedHosts === null) {
+    try {
+      const base = new URL(csBaseUrl)
+      return targetUrl.host === base.host
+    } catch {
+      return false
+    }
+  }
+  return csAllowedHosts.includes(targetUrl.host)
+}
+
+// CORS / API 鉴权配置
+// LANSTART_ALLOWED_ORIGINS: 逗号分隔的允许来源；'*' 表示全部允许（默认值）
+// LANSTART_API_TOKEN: 设置后所有非 /health 的 HTTP 接口需要 Bearer 鉴权
+const allowedOriginsRaw = String(process.env.LANSTART_ALLOWED_ORIGINS ?? '*').trim()
+const allowedOrigins = allowedOriginsRaw === '*'
+  ? null
+  : allowedOriginsRaw.split(',').map((s) => s.trim()).filter(Boolean)
+const apiToken = String(process.env.LANSTART_API_TOKEN ?? '').trim()
+const authRequired = apiToken.length > 0
+
+function resolveCorsOrigin(origin: string): string {
+  if (allowedOrigins === null) return '*'
+  if (origin && allowedOrigins.includes(origin)) return origin
+  return allowedOrigins[0] ?? '*'
+}
+
+function isAuthorized(request: Request): boolean {
+  if (!authRequired) return true
+  const url = new URL(request.url)
+  if (url.pathname === '/health') return true
+  const auth = request.headers.get('authorization') ?? ''
+  return auth === `Bearer ${apiToken}`
+}
+
 // 纯前端模式：当 LANSTART_PURE_FRONTEND=true 时，只保留基本的静态文件服务和 KV 存储 API
 // 禁用 UI State 管理和命令处理功能
 const isPureFrontend = String(process.env.LANSTART_PURE_FRONTEND ?? '').toLowerCase() === 'true'
@@ -102,6 +145,8 @@ type WebRtcSession = {
   answer?: WebRtcSdp
 }
 
+// WebRTC 会话存储在内存中。多实例部署时会话不共享，
+// CF Workers 部署完全不支持（路由未定义）。
 const webrtcSessions = new Map<string, WebRtcSession>()
 const WEBRTC_SESSION_TTL_MS = 10 * 60 * 1000
 
@@ -143,6 +188,9 @@ function getLocalIpv4Addrs(): string[] {
 }
 
 let nextEventId = 1
+// 事件系统使用进程内内存数组。
+// 注意：多实例部署时事件不共享，需要使用 Redis 或类似方案做事件分发。
+// 临时方案：使用部署前的反代 sticky session 或单实例部署。
 const events: EventItem[] = []
 const MAX_EVENTS = 200
 
@@ -218,6 +266,20 @@ function coerceAnnotationNotesHistoryValue(v: unknown): unknown {
   if (o.version === 2 && Array.isArray(o.pages)) return v
   if (o.version === 1 && Array.isArray(o.nodes)) return { version: 2, currentPage: 0, pages: [v as any] } satisfies PersistedAnnotationBookV2
   return v
+}
+
+function isPersistedAnnotationBookV2(v: unknown): v is PersistedAnnotationBookV2 {
+  if (!v || typeof v !== 'object') return false
+  const o = v as any
+  return o.version === 2 && Array.isArray(o.pages) && Number.isFinite(Number(o.currentPage))
+}
+
+function annotationNotesKvKeyForMode(mode: AppMode): string {
+  return mode === 'whiteboard'
+    ? 'annotation-notes-whiteboard'
+    : mode === 'video-show'
+      ? 'annotation-notes-video-show'
+      : 'annotation-notes-toolbar'
 }
 
 async function rotateNotesKeyOnStartup(key: string): Promise<void> {
@@ -418,6 +480,16 @@ function ensurePageTotalInState(state: Record<string, any>, total: number): void
   if (Number.isFinite(totalRaw) && totalRaw >= 1) return
   state[NOTES_PAGE_TOTAL_UI_STATE_KEY] = total
   emitEvent('UI_STATE_PUT', { windowId: UI_STATE_APP_WINDOW_ID, key: NOTES_PAGE_TOTAL_UI_STATE_KEY, value: total })
+}
+
+async function persistPageStateForMode(mode: AppMode, index: number, total: number): Promise<void> {
+  const boundedTotal = Number.isFinite(total) ? Math.max(1, Math.min(2000, Math.floor(total))) : 1
+  const boundedIndexRaw = Number.isFinite(index) ? Math.floor(index) : 0
+  const boundedIndex = Math.max(0, Math.min(boundedTotal - 1, boundedIndexRaw))
+  await Promise.allSettled([
+    putValue(db, `notes-page-index:${mode}`, boundedIndex),
+    putValue(db, `notes-page-total:${mode}`, boundedTotal)
+  ])
 }
 
 async function applyWhiteboardBackgroundForPage(args: { state: Record<string, any>; index: number; total: number }): Promise<void> {
@@ -681,10 +753,23 @@ async function handleCommand(command: string, payload: unknown): Promise<Command
           getValue(db, `notes-page-index:${mode}`),
           getValue(db, `notes-page-total:${mode}`)
         ])
+        const hasIndex = idxRes.status === 'fulfilled'
+        const hasTotal = totalRes.status === 'fulfilled'
         const totalRaw = totalRes.status === 'fulfilled' ? Number(totalRes.value) : NaN
-        const total = Number.isFinite(totalRaw) ? Math.max(1, Math.min(2000, Math.floor(totalRaw))) : 1
+        let total = Number.isFinite(totalRaw) ? Math.max(1, Math.min(2000, Math.floor(totalRaw))) : 1
         const idxRaw = idxRes.status === 'fulfilled' ? Number(idxRes.value) : NaN
-        const index = Number.isFinite(idxRaw) ? Math.max(0, Math.min(total - 1, Math.floor(idxRaw))) : 0
+        let index = Number.isFinite(idxRaw) ? Math.max(0, Math.min(total - 1, Math.floor(idxRaw))) : 0
+        if (!hasIndex || !hasTotal) {
+          try {
+            const notesBook = await getValue(db, annotationNotesKvKeyForMode(mode))
+            if (isPersistedAnnotationBookV2(notesBook)) {
+              if (!hasTotal) total = Math.max(1, Math.min(2000, Math.floor(notesBook.pages.length)))
+              if (!hasIndex) index = Number(notesBook.currentPage)
+            }
+          } catch {}
+          index = Number.isFinite(index) ? Math.max(0, Math.min(total - 1, Math.floor(index))) : 0
+          await persistPageStateForMode(mode, index, total)
+        }
         state[NOTES_PAGE_TOTAL_UI_STATE_KEY] = total
         state[NOTES_PAGE_INDEX_UI_STATE_KEY] = index
         emitEvent('UI_STATE_PUT', { windowId: UI_STATE_APP_WINDOW_ID, key: NOTES_PAGE_TOTAL_UI_STATE_KEY, value: total })
@@ -897,6 +982,9 @@ async function handleCommand(command: string, payload: unknown): Promise<Command
         const nextIndex = Math.max(0, Math.min(total - 1, index - 1))
         state[NOTES_PAGE_INDEX_UI_STATE_KEY] = nextIndex
         emitEvent('UI_STATE_PUT', { windowId: UI_STATE_APP_WINDOW_ID, key: NOTES_PAGE_INDEX_UI_STATE_KEY, value: nextIndex })
+        const modeRaw = state[APP_MODE_UI_STATE_KEY]
+        const mode = isAppMode(modeRaw) ? modeRaw : 'toolbar'
+        await persistPageStateForMode(mode, nextIndex, total)
         await applyWhiteboardBackgroundForPage({ state, index: nextIndex, total })
         return { ok: true }
       }
@@ -915,6 +1003,7 @@ async function handleCommand(command: string, payload: unknown): Promise<Command
           state[NOTES_PAGE_INDEX_UI_STATE_KEY] = nextIndex
           emitEvent('UI_STATE_PUT', { windowId: UI_STATE_APP_WINDOW_ID, key: NOTES_PAGE_TOTAL_UI_STATE_KEY, value: nextTotal })
           emitEvent('UI_STATE_PUT', { windowId: UI_STATE_APP_WINDOW_ID, key: NOTES_PAGE_INDEX_UI_STATE_KEY, value: nextIndex })
+          await persistPageStateForMode(mode, nextIndex, nextTotal)
           await applyWhiteboardBackgroundForPage({ state, index: nextIndex, total: nextTotal })
           return { ok: true }
         }
@@ -922,6 +1011,7 @@ async function handleCommand(command: string, payload: unknown): Promise<Command
         const nextIndex = Math.max(0, Math.min(total - 1, index + 1))
         state[NOTES_PAGE_INDEX_UI_STATE_KEY] = nextIndex
         emitEvent('UI_STATE_PUT', { windowId: UI_STATE_APP_WINDOW_ID, key: NOTES_PAGE_INDEX_UI_STATE_KEY, value: nextIndex })
+        await persistPageStateForMode(mode, nextIndex, total)
         await applyWhiteboardBackgroundForPage({ state, index: nextIndex, total })
         return { ok: true }
       }
@@ -941,6 +1031,7 @@ async function handleCommand(command: string, payload: unknown): Promise<Command
           state[NOTES_PAGE_INDEX_UI_STATE_KEY] = nextIndex
           emitEvent('UI_STATE_PUT', { windowId: UI_STATE_APP_WINDOW_ID, key: NOTES_PAGE_TOTAL_UI_STATE_KEY, value: nextTotal })
           emitEvent('UI_STATE_PUT', { windowId: UI_STATE_APP_WINDOW_ID, key: NOTES_PAGE_INDEX_UI_STATE_KEY, value: nextIndex })
+          await persistPageStateForMode(mode, nextIndex, nextTotal)
 
           const photoTotal = Math.max(0, nextTotal - 1)
           const photoIndex = Math.max(0, nextIndex - 1)
@@ -962,6 +1053,7 @@ async function handleCommand(command: string, payload: unknown): Promise<Command
         state[NOTES_PAGE_INDEX_UI_STATE_KEY] = nextIndex
         emitEvent('UI_STATE_PUT', { windowId: UI_STATE_APP_WINDOW_ID, key: NOTES_PAGE_TOTAL_UI_STATE_KEY, value: nextTotal })
         emitEvent('UI_STATE_PUT', { windowId: UI_STATE_APP_WINDOW_ID, key: NOTES_PAGE_INDEX_UI_STATE_KEY, value: nextIndex })
+        await persistPageStateForMode(mode, nextIndex, nextTotal)
         await applyWhiteboardBackgroundForPage({ state, index: nextIndex, total: nextTotal })
         return { ok: true }
       }
@@ -975,6 +1067,9 @@ async function handleCommand(command: string, payload: unknown): Promise<Command
         const nextIndex = Math.max(0, Math.min(total - 1, desired))
         state[NOTES_PAGE_INDEX_UI_STATE_KEY] = nextIndex
         emitEvent('UI_STATE_PUT', { windowId: UI_STATE_APP_WINDOW_ID, key: NOTES_PAGE_INDEX_UI_STATE_KEY, value: nextIndex })
+        const modeRaw = state[APP_MODE_UI_STATE_KEY]
+        const mode = isAppMode(modeRaw) ? modeRaw : 'toolbar'
+        await persistPageStateForMode(mode, nextIndex, total)
         await applyWhiteboardBackgroundForPage({ state, index: nextIndex, total })
         return { ok: true }
       }
@@ -1392,12 +1487,21 @@ stdin.on('line', (line) => {
 
 const api = new Elysia()
   .onRequest(({ request, set }) => {
-    set.headers['Access-Control-Allow-Origin'] = '*'
+    const origin = request.headers.get('origin') ?? ''
+    const allowOrigin = resolveCorsOrigin(origin)
+    set.headers['Access-Control-Allow-Origin'] = allowOrigin
+    set.headers['Vary'] = 'Origin'
     set.headers['Access-Control-Allow-Methods'] = 'GET,POST,PUT,DELETE,OPTIONS'
-    set.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+    set.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
     if (request.method === 'OPTIONS') {
       set.status = 204
       return ''
+    }
+  })
+  .onBeforeHandle(({ request, set }) => {
+    if (!isAuthorized(request)) {
+      set.status = 401
+      return { ok: false, error: 'UNAUTHORIZED' }
     }
   })
   .get('/health', () => ({ ok: true, port, pureFrontend: isPureFrontend }))
@@ -1656,6 +1760,15 @@ const api = new Elysia()
 
     const method = request.method.toUpperCase()
 
+    if (!['GET', 'POST', 'PUT', 'DELETE'].includes(method)) {
+      set.status = 405
+      return { ok: false, error: 'METHOD_NOT_ALLOWED' }
+    }
+    if (!isCsHostAllowed(targetUrl)) {
+      set.status = 403
+      return { ok: false, error: 'CS_HOST_NOT_ALLOWED' }
+    }
+
     const headers = new Headers()
     const contentType = request.headers.get('content-type')
     if (contentType) headers.set('content-type', contentType)
@@ -1663,7 +1776,14 @@ const api = new Elysia()
     if (accept) headers.set('accept', accept)
 
     const body = method === 'GET' || method === 'HEAD' ? undefined : await request.arrayBuffer()
-    const res = await fetch(targetUrl, { method, headers, body })
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), 10_000)
+    let res: Response
+    try {
+      res = await fetch(targetUrl, { method, headers, body, signal: controller.signal })
+    } finally {
+      clearTimeout(timer)
+    }
 
     set.status = res.status
     const outType = res.headers.get('content-type') ?? ''
@@ -1755,29 +1875,6 @@ const api = new Elysia()
       })
     }
   )
-  .get(
-    '/kv/:key',
-    async ({ params, set }) => {
-      try {
-        const value = await getValue(db, params.key)
-        emitEvent('KV_GET', { key: params.key })
-        return { ok: true, key: params.key, value }
-      } catch {
-        set.status = 404
-        return { ok: false, key: params.key, error: 'NOT_FOUND' }
-      }
-    },
-    { params: t.Object({ key: t.String() }) }
-  )
-  .put(
-    '/kv/:key',
-    async ({ params, body }) => {
-      await putValue(db, params.key, body)
-      emitEvent('KV_PUT', { key: params.key })
-      return { ok: true, key: params.key }
-    },
-    { params: t.Object({ key: t.String() }), body: t.Any() }
-  )
   .delete(
     '/kv/:key',
     async ({ params }) => {
@@ -1849,15 +1946,6 @@ const api = new Elysia()
       })
     }
   )
-  .get(
-    '/events',
-    async ({ query }) => {
-      const since = Number(query.since ?? 0)
-      const items = events.filter((e) => e.id > since)
-      return { ok: true, items, latest: events.at(-1)?.id ?? since }
-    },
-    { query: t.Object({ since: t.Optional(t.String()) }) }
-  )
 
 const senderHtml = `<!doctype html>
 <html lang="zh-CN">
@@ -1884,10 +1972,10 @@ const senderHtml = `<!doctype html>
       <div class="card">
         <div class="row">
           <div>
-            <div style="font-size: 13px; font-weight: 700;">鎵嬫満鎽勫儚澶存姇灞?/div>
-            <div class="muted">璇蜂繚鎸佹墜鏈轰笌鐢佃剳鍦ㄥ悓涓€灞€域网</div>
+            <div style="font-size: 13px; font-weight: 700;">手机摄像头投屏</div>
+            <div class="muted">请保持手机与电脑在同一局域网</div>
           </div>
-          <button id="btnStart">寮€濮嬫姇灞?/button>
+          <button id="btnStart">开始投屏</button>
         </div>
         <div style="height: 10px;"></div>
         <div class="row">
@@ -1895,12 +1983,12 @@ const senderHtml = `<!doctype html>
           <div id="session" class="mono muted">-</div>
         </div>
         <div class="row">
-          <div class="muted">鐘舵€?/div>
+          <div class="muted">状态</div>
           <div id="status" class="mono muted">idle</div>
         </div>
       </div>
       <video id="preview" autoplay playsinline muted></video>
-      <div class="muted">鑻ユ彁绀轰笉鏀寔鎽勫儚澶存潈闄愶紝璇峰皾璇曚娇鐢?HTTPS 鎴栧湪娴忚鍣ㄤ腑鍏佽鐩告満鏉冮檺銆?/div>
+      <div class="muted">如果浏览器拒绝摄像头权限，请尝试使用 HTTPS 或在手动授予相机权限后刷新页面。</div>
     </div>
     <script>
       const $ = (id) => document.getElementById(id);
@@ -2007,12 +2095,21 @@ const senderHtml = `<!doctype html>
 
 const castApi = new Elysia()
   .onRequest(({ request, set }) => {
-    set.headers['Access-Control-Allow-Origin'] = '*'
+    const origin = request.headers.get('origin') ?? ''
+    const allowOrigin = resolveCorsOrigin(origin)
+    set.headers['Access-Control-Allow-Origin'] = allowOrigin
+    set.headers['Vary'] = 'Origin'
     set.headers['Access-Control-Allow-Methods'] = 'GET,POST,PUT,DELETE,OPTIONS'
-    set.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+    set.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
     if (request.method === 'OPTIONS') {
       set.status = 204
       return ''
+    }
+  })
+  .onBeforeHandle(({ request, set }) => {
+    if (!isAuthorized(request)) {
+      set.status = 401
+      return { ok: false, error: 'UNAUTHORIZED' }
     }
   })
   .group('/webrtc', (app) =>

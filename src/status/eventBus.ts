@@ -5,7 +5,7 @@ export type EventItem = {
   ts: number
 }
 
-type EventPayloadMap = {
+export type EventPayloadMap = {
   KV_GET: { key: string }
   KV_PUT: { key: string }
   UI_STATE_PUT: { windowId: string; key: string; value: unknown }

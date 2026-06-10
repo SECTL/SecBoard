@@ -7,6 +7,28 @@ echo "========================================="
 echo "SecBoard Cloudflare 部署脚本"
 echo "========================================="
 
+# Pre-flight checks
+echo "==> Checking wrangler installation..."
+if ! command -v wrangler >/dev/null 2>&1 && ! pnpm exec wrangler --version >/dev/null 2>&1; then
+  echo "ERROR: wrangler is not installed. Run: pnpm install" >&2
+  exit 1
+fi
+
+echo "==> Checking wrangler authentication..."
+if ! pnpm exec wrangler whoami >/dev/null 2>&1; then
+  echo "ERROR: Not logged in to Cloudflare. Run: pnpm exec wrangler login" >&2
+  exit 1
+fi
+
+echo "==> Checking D1 database exists..."
+if pnpm exec wrangler d1 list 2>/dev/null | grep -q "secboard-db"; then
+  echo "D1 database found."
+else
+  echo "WARNING: D1 database 'secboard-db' not found." >&2
+  echo "  Create it with: pnpm exec wrangler d1 create secboard-db" >&2
+  echo "  Then update database_id in wrangler.toml" >&2
+fi
+
 cd "$(dirname "$0")"
 
 echo ""

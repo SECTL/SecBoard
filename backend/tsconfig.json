@@ -15,6 +15,15 @@
       "@/*": ["src/*"]
     }
   },
-  "include": ["**/*.ts"],
+  "include": [
+    "src/elysia/**/*.ts",
+    "src/LeavelDB/**/*.ts",
+    "bun/**/*.ts",
+    "node/**/*.ts",
+    "cf/**/*.ts",
+    "adapters/**/*.ts",
+    "core/**/*.ts",
+    "index.ts"
+  ],
   "exclude": ["node_modules", "dist"]
 }

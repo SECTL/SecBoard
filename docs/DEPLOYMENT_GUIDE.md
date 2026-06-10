@@ -1,260 +1,161 @@
-# SecBoard 完整部署指南
+# SecBoard 部署指南
 
-## 概述
+本文档按当前代码可验证的部署能力编写。SecBoard 目前有三条推荐路径：
 
-本文档提供 SecBoard 项目的完整部署指南，涵盖各种部署场景和环境。
+| 场景 | 推荐方式 | 状态 |
+| --- | --- | --- |
+| Linux/VPS/内网服务器，功能最完整 | Bun 主后端 + 静态前端 + Nginx/Caddy | 推荐 |
+| 快速自托管或试运行 | Docker Compose | 推荐 |
+| 无服务器 Web 白板 | Cloudflare Workers + Pages | 可用，但不包含本地文件选择和投屏信令 |
+| 只要浏览器本地白板 | 纯前端静态部署 | 可用，数据保存在浏览器 IndexedDB |
+| `backend/node` / `backend/bun` 模块 | 仅用于适配器实验 | 不作为生产完整后端推荐 |
 
-## 一、部署架构
+## 运行时边界
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                        部署架构图                                   │
-├─────────────────────────────────────────────────────────────────────┤
-│                                                                     │
-│   ┌──────────┐    HTTP    ┌──────────┐    API    ┌────────────┐   │
-│   │   用户   │ ─────────→ │   Nginx  │ ─────────→ │   后端服务  │   │
-│   │ (浏览器) │            │  反向代理 │            │ (Bun/Node) │   │
-│   └──────────┘            └──────────┘            └────────────┘   │
-│         │                      │                                      │
-│         │ 静态资源              │                                      │
-│         ↓                      ↓                                      │
-│   ┌──────────────────────────────────────────┐                       │
-│   │          前端静态文件 (dist/web)         │                       │
-│   └──────────────────────────────────────────┘                       │
-│                                                                     │
-└─────────────────────────────────────────────────────────────────────┘
-```
+当前完整业务后端入口是 [src/elysia/index.ts](../src/elysia/index.ts)，包含命令处理、白板状态、KV、UI State、CUNOX、图片转换、CS 代理和 WebRTC 信令。`backend/` 目录下的模块化后端只实现基础 KV/UI State/Events，不覆盖完整白板业务，因此部署教程默认不使用它。
 
-## 二、部署方案选择
-
-| 方案 | 适用场景 | 复杂度 | 推荐指数 |
-|------|---------|--------|---------|
-| **纯前端模式** | 无后端需求、快速部署 | 低 | ★★★★★ |
-| **Bun 后端** | 开发环境、小型部署 | 低 | ★★★★☆ |
-| **Node.js 后端** | 生产环境、需要 Node.js 生态 | 中 | ★★★★☆ |
-| **Cloudflare Workers** | 全球部署、高可用 | 中 | ★★★★★ |
-| **Docker Compose** | 本地测试、多容器部署 | 中 | ★★★☆☆ |
-| **宝塔面板** | 新手用户、可视化管理 | 低 | ★★★★☆ |
-| **阿里云 ECS** | 企业级部署、高可控性 | 高 | ★★★★☆ |
-
-## 三、快速开始
-
-### 3.1 纯前端模式（最快）
-
-```bash
-# 克隆项目
-git clone https://github.com/your-repo/secboard.git
-cd secboard
-
-# 安装依赖
-bun install
-
-# 构建
-bun run build:frontend
-
-# 预览（使用 Vite）
-bun run preview
-```
-
-### 3.2 前后端分离模式
-
-```bash
-# 启动前端
-bun run dev:web
-
-# 启动后端（新终端）
-bun run dev:backend:bun
-```
-
-## 四、配置说明
-
-### 4.1 环境变量
-
-| 变量名 | 说明 | 默认值 |
-|--------|------|--------|
-| `VITE_PURE_FRONTEND` | 是否启用纯前端模式 | `false` |
-| `VITE_LANSTART_API_BASE` | 后端 API 地址 | `http://localhost:3131` |
-| `LANSTART_BACKEND_PORT` | 后端服务端口 | `3131` |
-| `LANSTART_BACKEND_HOST` | 后端服务主机 | `127.0.0.1` |
-
-### 4.2 配置文件
+生产前端默认使用同源 API，也就是 `/health`、`/rpc/post-command`、`/kv/*` 等路径。如果前端和后端分离在不同域名，才需要在构建前设置：
 
 ```env
-# .env.production
+VITE_LANSTART_API_BASE=https://api.example.com
+```
+
+## 快速开始
+
+### 1. 本地验证生产构建
+
+```bash
+corepack enable
+corepack prepare pnpm@10 --activate
+pnpm install --frozen-lockfile
+pnpm run typecheck
+pnpm run build
+```
+
+如果使用 Bun：
+
+```bash
+bun install --frozen-lockfile
+bun run typecheck
+bun run build
+```
+
+构建产物在 `dist/web`。
+
+### 2. Linux 服务器
+
+```bash
+sudo mkdir -p /opt/secboard
+sudo chown "$USER":"$USER" /opt/secboard
+git clone <repo-url> /opt/secboard
+cd /opt/secboard
+
+cp .env.example .env
+# 修改 .env 中的 LANSTART_ALLOWED_ORIGINS、LANSTART_DB_PATH、LANSTART_API_TOKEN
+
+bun install --frozen-lockfile
+bun run build
+sudo cp secboard.service /etc/systemd/system/secboard.service
+sudo systemctl daemon-reload
+sudo systemctl enable --now secboard
+curl http://127.0.0.1:3131/health
+```
+
+前端静态文件由 Nginx 或 Caddy 托管，API 路径反代到 `127.0.0.1:3131`，投屏信令反代到 `127.0.0.1:3132`。示例见 [nginx.conf.example](../nginx.conf.example) 和 [Caddyfile.example](../Caddyfile.example)。
+
+### 3. Docker Compose
+
+```bash
+cp .env.example .env
+docker compose up -d --build
+curl http://127.0.0.1:8080/health
+```
+
+浏览器打开 `http://localhost:8080`。容器内置一个轻量静态服务器，负责托管 `dist/web` 并把 API 路径同源代理到后端。
+
+### 4. Cloudflare Workers + Pages
+
+```bash
+cd secboard-cf
+pnpm install
+pnpm exec wrangler login
+pnpm exec wrangler d1 create secboard-db
+pnpm exec wrangler r2 bucket create secboard-files
+```
+
+将 D1 返回的 `database_id` 填入 [secboard-cf/wrangler.toml](../secboard-cf/wrangler.toml)，然后：
+
+```bash
+pnpm exec wrangler d1 execute secboard-db --file=./schema.sql --remote
+pnpm exec wrangler deploy
+```
+
+前端 Pages 构建时设置：
+
+```env
+VITE_PURE_FRONTEND=false
+VITE_LANSTART_API_BASE=https://<worker-name>.<account>.workers.dev
+```
+
+Cloudflare 路径支持白板状态、KV、UI State、事件、部分 CUNOX 文件接口；不支持本机文件选择、桌面 stdio RPC 和手机投屏信令。
+
+### 5. 纯前端静态部署
+
+构建前设置：
+
+```env
 VITE_PURE_FRONTEND=true
-VITE_LANSTART_API_BASE=https://api.secboard.example.com
 ```
 
-## 五、部署检查清单
-
-### 5.1 部署前检查
-
-- [ ] 确认 Node.js 版本 >= 18.0.0
-- [ ] 确认 Bun 版本 >= 1.0.0（如果使用 Bun）
-- [ ] 确认域名已正确解析
-- [ ] 确认 SSL 证书已配置
-- [ ] 确认防火墙已开放 80/443 端口
-
-### 5.2 部署后验证
+然后运行：
 
 ```bash
-# 检查前端
-curl -I http://your-domain.com/
-# 预期状态码：200 OK
-
-# 检查后端（如果启用）
-curl http://your-domain.com/api/health
-# 预期输出：{"ok":true,"platform":"unknown"}
-
-# 检查静态资源
-curl -I http://your-domain.com/assets/index.css
-# 预期状态码：200 OK
+pnpm run build:frontend
 ```
 
-## 六、常见问题
+将 `dist/web` 部署到任意静态平台即可。此模式所有数据保存在当前浏览器的 IndexedDB，不会跨设备同步。
 
-### 6.1 前端页面显示空白
+## 生产环境变量
 
-**可能原因：**
-- JavaScript 打包错误
-- 路由配置错误
-- 资源加载失败
+| 变量 | 用途 | 建议 |
+| --- | --- | --- |
+| `LANSTART_BACKEND_HOST` | 后端监听地址 | 服务器部署用 `127.0.0.1`，容器用 `0.0.0.0` |
+| `LANSTART_BACKEND_PORT` | 主 API 端口 | 默认 `3131` |
+| `LANSTART_CAST_HOST` | 投屏信令监听地址 | 默认 `0.0.0.0` |
+| `LANSTART_CAST_PORT` | 投屏信令端口 | 默认 `3132` |
+| `LANSTART_DB_PATH` | SQLite 数据库路径 | 生产用 `/opt/secboard/data/lanstart.sqlite` |
+| `LANSTART_ALLOWED_ORIGINS` | 允许的浏览器 Origin | 公网部署必须设为真实域名 |
+| `LANSTART_API_TOKEN` | Bearer token 鉴权 | 适合服务端/API 私有访问；公开前端中不是强秘密 |
+| `LANSTART_CS_BASE_URL` | `/cs/*` 代理上游 | 不需要就留空 |
+| `LANSTART_CS_ALLOW_HOSTS` | `/cs/*` 主机白名单 | 公网部署必须限制 |
+| `VITE_PURE_FRONTEND` | 是否构建纯前端模式 | 静态纯前端设为 `true` |
+| `VITE_LANSTART_API_BASE` | 分离 API 域名 | 同源部署留空 |
 
-**解决方案：**
-```bash
-# 检查控制台错误
-# 打开浏览器开发者工具 > Console
-
-# 检查构建日志
-bun run build:frontend 2>&1 | tail -20
-
-# 检查 Nginx 日志
-tail -f /var/log/nginx/error.log
-```
-
-### 6.2 后端服务无法启动
-
-**可能原因：**
-- 端口被占用
-- 依赖未安装
-- 权限不足
-
-**解决方案：**
-```bash
-# 检查端口占用
-lsof -i :3131
-
-# 检查 PM2 日志
-pm2 logs secboard-backend
-
-# 检查 Node.js 版本
-node --version
-```
-
-### 6.3 API 请求失败
-
-**可能原因：**
-- CORS 配置错误
-- 反向代理配置错误
-- 后端服务未运行
-
-**解决方案：**
-```bash
-# 检查 CORS 响应头
-curl -I http://api.your-domain.com/health
-
-# 检查 Nginx 配置
-nginx -t
-
-# 检查后端状态
-pm2 status
-```
-
-### 6.4 HTTPS 证书问题
-
-**可能原因：**
-- 证书过期
-- 域名不匹配
-- 证书链不完整
-
-**解决方案：**
-```bash
-# 检查证书状态
-openssl x509 -in /etc/letsencrypt/live/your-domain.com/cert.pem -text -noout
-
-# 重新获取证书
-certbot renew --force-renewal
-```
-
-## 七、运维建议
-
-### 7.1 日志管理
+## 部署后检查
 
 ```bash
-# 配置日志轮转
-sudo nano /etc/logrotate.d/secboard
-
-/var/log/secboard/*.log {
-    daily
-    missingok
-    rotate 30
-    compress
-    delaycompress
-    notifempty
-    create 0644 www-data www-data
-}
+curl -fsS http://127.0.0.1:3131/health
+curl -fsS https://yourdomain.com/health
+curl -I https://yourdomain.com/
+curl -I https://yourdomain.com/assets/
 ```
 
-### 7.2 监控告警
+浏览器检查项：
 
-```bash
-# 安装监控工具
-sudo apt install -y htop glances
+- 白板能切到画笔并写出笔迹。
+- 刷新后当前白板页数据仍在。
+- 多页面切换后每页笔迹互不串页。
+- 设置页、浮动栏、页面缩略栏可以打开和关闭。
+- 如果启用投屏，手机打开 `/webrtc/` 能创建会话。
 
-# 配置系统监控
-# 推荐使用：Prometheus + Grafana
-```
+## 安全提示
 
-### 7.3 备份策略
+`LANSTART_API_TOKEN` 会随前端构建暴露给浏览器时，不应被视为强保密凭据。公网生产建议至少使用 HTTPS、外层访问控制、VPN、Cloudflare Access、Basic Auth 或反向代理层鉴权；同时设置 `LANSTART_ALLOWED_ORIGINS` 和 `LANSTART_CS_ALLOW_HOSTS`，不要把 API 裸露给任意来源。
 
-```bash
-# 每日备份
-0 2 * * * tar -czf /backup/secboard-$(date +%Y%m%d).tar.gz /var/www/secboard
+## 详细文档
 
-# 保留最近 7 天备份
-find /backup -name "secboard-*.tar.gz" -mtime +7 -delete
-```
-
-### 7.4 安全建议
-
-1. **最小权限原则**：运行服务使用非 root 用户
-2. **定期更新**：定期更新系统和依赖包
-3. **防火墙配置**：只开放必要端口
-4. **SSL/TLS**：始终启用 HTTPS
-5. **安全头**：配置安全相关的 HTTP 响应头
-
-```nginx
-# 安全头配置
-add_header X-Frame-Options "SAMEORIGIN";
-add_header X-XSS-Protection "1; mode=block";
-add_header X-Content-Type-Options "nosniff";
-add_header Content-Security-Policy "default-src 'self'";
-```
-
-## 八、部署文档索引
-
-| 文档 | 路径 | 说明 |
-|------|------|------|
-| Bun 后端部署 | [DEPLOYMENT_BUN.md](DEPLOYMENT_BUN.md) | Bun 运行时部署指南 |
-| Node.js 后端部署 | [DEPLOYMENT_NODE.md](DEPLOYMENT_NODE.md) | Node.js 运行时部署指南 |
-| Cloudflare Workers | [DEPLOYMENT_CF.md](DEPLOYMENT_CF.md) | Cloudflare 部署指南 |
-| Linux SSH 部署 | [DEPLOYMENT_LINUX_SSH.md](DEPLOYMENT_LINUX_SSH.md) | 纯命令行部署指南 |
-| 宝塔面板部署 | [DEPLOYMENT_BAOTA.md](DEPLOYMENT_BAOTA.md) | 宝塔面板部署指南 |
-| 阿里云 ECS 部署 | [DEPLOYMENT_ALIYUN.md](DEPLOYMENT_ALIYUN.md) | 阿里云部署指南 |
-| Docker Compose | [DEPLOYMENT_DOCKER.md](DEPLOYMENT_DOCKER.md) | Docker 容器部署指南 |
-| 前端独立部署 | [DEPLOYMENT_FRONTEND.md](DEPLOYMENT_FRONTEND.md) | 纯前端部署指南 |
-
----
-
-**文档版本**: 1.0.0  
-**最后更新**: 2026-05-05
+- [Bun/Linux 部署](./DEPLOYMENT_BUN.md)
+- [Docker Compose 部署](./DEPLOYMENT_DOCKER.md)
+- [Cloudflare 部署](./DEPLOYMENT_CF.md)
+- [纯前端部署](./DEPLOYMENT_FRONTEND.md)
+- [部署审计](../DEPLOYMENT_AUDIT.md)

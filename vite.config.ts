@@ -14,6 +14,7 @@ const BACKEND_PORT = Number(process.env.BACKEND_PORT ?? 3131)
 
 export default defineConfig({
   root: rendererRoot,
+  envDir: rootDir,
   plugins: [react()],
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version ?? '0.0.0'),

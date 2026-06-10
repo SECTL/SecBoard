@@ -14,14 +14,13 @@ import {
   Eraser20Regular,
   Whiteboard20Regular,
   Video20Regular,
-  AlignHorizontalLeftFill20Regular,
-  AlignHorizontalRightFill20Regular,
 } from '@fluentui/react-icons'
 import {
   ERASER_SETTINGS_KV_KEY,
   PEN_SETTINGS_KV_KEY,
   TOOLBAR_STATE_KEY,
   TOOLBAR_STATE_UI_STATE_KEY,
+  TOOL_UI_STATE_KEY,
   UI_STATE_APP_WINDOW_ID,
   getKv,
   putKv,
@@ -29,8 +28,7 @@ import {
   isPenSettings,
   putUiStateKey,
   useAppMode,
-  useUiStateBus,
-  useFrontendState
+  useUiStateBus
 } from '../status'
 import { usePersistedState } from './hooks/usePersistedState'
 import { getToolbarNoticeKind, postCommand, setToolbarNoticeVisible } from './hooks/useBackend'
@@ -340,19 +338,14 @@ function FloatingToolbarInner() {
 
   const { toolbarButtonHintsEnabled } = useAppearanceSettings()
 
-  const isPureFrontend = (import.meta as any)?.env?.VITE_PURE_FRONTEND === true
-  const frontendState = useFrontendState()
-
   useToolbarWindowAutoResize({ root: contentRef.current })
   useZoomOnWheel()
 
   useEffect(() => {
-    if (isPureFrontend) return
     postCommand('app.setTool', { tool: 'mouse' }).catch(() => undefined)
-  }, [isPureFrontend])
+  }, [])
 
   useEffect(() => {
-    if (isPureFrontend) return
     let cancelled = false
 
     const check = async () => {
@@ -394,7 +387,7 @@ function FloatingToolbarInner() {
       cancelled = true
       window.clearInterval(id)
     }
-  }, [isPureFrontend])
+  }, [])
 
   useEffect(() => {
     if (!backendEvents.length) return
@@ -404,7 +397,6 @@ function FloatingToolbarInner() {
   }, [backendEvents])
 
   useEffect(() => {
-    if (isPureFrontend) return
     let cancelled = false
 
     ;(async () => {
@@ -428,65 +420,44 @@ function FloatingToolbarInner() {
     return () => {
       cancelled = true
     }
-  }, [isPureFrontend])
+  }, [])
 
   const toggleExpanded = () => {
     setState({ ...state, expanded: !isExpanded })
   }
 
   const handlePenClick = () => {
+    void putUiStateKey(UI_STATE_APP_WINDOW_ID, TOOL_UI_STATE_KEY, 'pen')
+    void postCommand('app.setTool', { tool: 'pen' })
     if (tool === 'pen') {
-      if (!isPureFrontend) {
-        void postCommand('toggle-subwindow', { kind: 'pen', placement: 'bottom' })
-      }
+      void postCommand('toggle-subwindow', { kind: 'pen', placement: 'bottom' })
     } else {
       setState({ ...state, tool: 'pen' })
-      if (isPureFrontend) {
-        frontendState.setTool('pen')
-      } else {
-        void postCommand('app.setTool', { tool: 'pen' })
-      }
     }
   }
 
   const handleEraserClick = () => {
+    void putUiStateKey(UI_STATE_APP_WINDOW_ID, TOOL_UI_STATE_KEY, 'eraser')
+    void postCommand('app.setTool', { tool: 'eraser' })
     if (tool === 'eraser') {
-      if (!isPureFrontend) {
-        void postCommand('toggle-subwindow', { kind: 'eraser', placement: 'bottom' })
-      }
+      void postCommand('toggle-subwindow', { kind: 'eraser', placement: 'bottom' })
     } else {
       setState({ ...state, tool: 'eraser' })
-      if (isPureFrontend) {
-        frontendState.setTool('eraser')
-      } else {
-        void postCommand('app.setTool', { tool: 'eraser' })
-      }
     }
   }
 
   const handleMouseClick = () => {
     setState({ ...state, tool: 'mouse' })
-    if (isPureFrontend) {
-      frontendState.setTool('mouse')
-    } else {
-      void postCommand('app.setTool', { tool: 'mouse' })
-    }
+    void putUiStateKey(UI_STATE_APP_WINDOW_ID, TOOL_UI_STATE_KEY, 'mouse')
+    void postCommand('app.setTool', { tool: 'mouse' })
   }
 
   const handleUndo = () => {
-    if (isPureFrontend) {
-      frontendState.undo()
-    } else {
-      void postCommand('app.undo')
-    }
+    void postCommand('app.undo')
   }
 
   const handleRedo = () => {
-    if (isPureFrontend) {
-      frontendState.redo()
-    } else {
-      void postCommand('app.redo')
-    }
+    void postCommand('app.redo')
   }
 
   const primaryButtonsOrder = state.primaryButtonsOrder ?? DEFAULT_PRIMARY_BUTTONS_ORDER
@@ -568,13 +539,13 @@ function FloatingToolbarInner() {
         <Button
           key="whiteboard"
           size={uiButtonSize}
-          variant="light"
+          variant={whiteboardActive ? 'light' : 'default'}
           ariaLabel={ariaLabel}
           title={ariaLabel}
           showInToolbar={visibility.showInToolbar}
           showInFeaturePanel={visibility.showInFeaturePanel}
           onClick={() => {
-            // 白板模式始终激活，无法退出
+            if (!whiteboardActive) setAppMode('whiteboard')
           }}
         >
           {withButtonHint(<ToolbarToolIcon kind="whiteboard" />, ariaLabel)}
@@ -595,7 +566,7 @@ function FloatingToolbarInner() {
           showInToolbar={visibility.showInToolbar}
           showInFeaturePanel={visibility.showInFeaturePanel}
           onClick={() => {
-            setAppMode(videoShowActive ? 'toolbar' : 'video-show')
+            setAppMode(videoShowActive ? 'whiteboard' : 'video-show')
           }}
         >
           {withButtonHint(<ToolbarToolIcon kind="video-show" />, ariaLabel)}
@@ -655,9 +626,7 @@ function FloatingToolbarInner() {
           showInToolbar={visibility.showInToolbar}
           showInFeaturePanel={visibility.showInFeaturePanel}
           onClick={() => {
-            if (!isPureFrontend) {
-              void postCommand('toggle-subwindow', { kind: 'clock', placement: 'bottom' })
-            }
+            void postCommand('toggle-subwindow', { kind: 'clock', placement: 'bottom' })
           }}
         >
           {withButtonHint(<ClockIcon />, ariaLabel)}
@@ -677,9 +646,7 @@ function FloatingToolbarInner() {
           showInToolbar={visibility.showInToolbar}
           showInFeaturePanel={visibility.showInFeaturePanel}
           onClick={() => {
-            if (!isPureFrontend) {
-              void postCommand('toggle-subwindow', { kind: 'events', placement: 'bottom' })
-            }
+            void postCommand('toggle-subwindow', { kind: 'events', placement: 'bottom' })
           }}
         >
           {withButtonHint(<EventsIcon />, ariaLabel)}
@@ -697,9 +664,7 @@ function FloatingToolbarInner() {
         showInToolbar={visibility.showInToolbar}
         showInFeaturePanel={visibility.showInFeaturePanel}
         onClick={() => {
-          if (!isPureFrontend) {
-            void postCommand('toggle-subwindow', { kind: 'feature-panel', placement: 'bottom' })
-          }
+          void postCommand('toggle-subwindow', { kind: 'feature-panel', placement: 'bottom' })
         }}
       >
         {withButtonHint(

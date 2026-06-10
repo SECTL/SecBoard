@@ -145,7 +145,7 @@ class FrontendEventBus {
 
 ```bash
 # 构建时启用纯前端模式
-VITE_PURE_FRONTEND=true bun run build
+bun run build:frontend
 
 # 或在 .env.production 中设置
 VITE_PURE_FRONTEND=true
@@ -166,7 +166,7 @@ if (isPureFrontendMode()) {
 | 环境变量 | 说明 | 默认值 |
 |---------|------|--------|
 | `VITE_PURE_FRONTEND` | 启用纯前端模式 | `false` |
-| `VITE_LANSTART_API_BASE` | 后端 API 基础 URL | 开发模式为空，生产模式为 `http://127.0.0.1:3131` |
+| `VITE_LANSTART_API_BASE` | 后端 API 基础 URL | 默认同源；前后端分离时显式设置 |
 
 配置示例 (`.env.production`)：
 
@@ -194,8 +194,11 @@ bun run dev:backend
 ### 3.4 生产构建
 
 ```bash
-# 构建前端
+# 构建同源后端模式前端
 bun run build
+
+# 构建纯前端模式
+bun run build:frontend
 
 # 构建产物位于 dist/web 目录
 ```

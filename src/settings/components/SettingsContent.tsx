@@ -14,6 +14,11 @@
   Add20Regular,
   Delete20Regular,
   Note20Regular,
+  Database20Regular,
+  Settings20Regular,
+  ArrowExit20Regular,
+  SlideText20Regular,
+  Grid20Regular,
 } from '@fluentui/react-icons'
 import React from 'react'
 import { Box, Select, Switch } from '@mantine/core'
@@ -338,34 +343,6 @@ function ToolbarSettings() {
       'video-show': <Video20Regular />,
     }
     return icons[props.kind] ?? <Cursor20Regular />
-  }
-
-  function UndoIcon() {
-    return <ArrowUndo20Regular />
-  }
-
-  function RedoIcon() {
-    return <ArrowRedo20Regular />
-  }
-
-  function ClockIcon() {
-    return <Clock20Regular />
-  }
-
-  function FeaturePanelIcon() {
-    return <GridKanban20Regular />
-  }
-
-  function EventsIcon() {
-    return <AlertOn20Regular />
-  }
-
-  function ChevronLeftIcon() {
-    return <ChevronLeft20Regular />
-  }
-
-  function ChevronRightIcon() {
-    return <ChevronRight20Regular />
   }
 
   function UndoIcon() {

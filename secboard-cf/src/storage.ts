@@ -40,15 +40,3 @@ export async function getCunoxFileInfo(env: Env, path: string): Promise<CunoxFil
   ).bind(path).first<CunoxFileRow>()
   return row || null
 }
-
-export async function getSignedUploadUrl(env: Env, key: string): Promise<string> {
-  const url = await env.R2_BUCKET.createSignedUploadUrl(`cunox/${key}`, {
-    expiration: 3600
-  })
-  return url
-}
-
-export async function getSignedDownloadUrl(env: Env, key: string): Promise<string> {
-  const url = await env.R2_BUCKET.signGetObject(`cunox/${key}`, 3600)
-  return url
-}

@@ -1,260 +1,126 @@
-# Bun 后端部署文档
+# Bun/Linux 完整部署
 
-## 概述
+这是 SecBoard 当前推荐的生产路径。完整后端入口是 `src/elysia/index.ts`，运行在 Bun 上；前端用 Vite 构建到 `dist/web`，由 Nginx/Caddy 托管。
 
-本文档详细介绍如何在不同环境下部署 SecBoard Bun 后端服务。
+## 前置条件
 
-## 一、环境要求
+- Ubuntu 22.04+ / Debian 12+ / CentOS Stream 9+
+- Bun 1.1+
+- Git
+- Nginx 或 Caddy
+- 512 MB 以上内存
 
-| 依赖 | 版本要求 | 说明 |
-|------|---------|------|
-| Bun | >= 1.0.0 | JavaScript 运行时 |
-| Node.js | >= 18.0.0 | 可选，用于某些工具 |
-| Git | >= 2.0.0 | 代码版本控制 |
-
-## 二、本地开发环境部署
-
-### 2.1 安装依赖
+## 1. 准备目录和用户
 
 ```bash
-# 安装 Bun（如果尚未安装）
-curl -fsSL https://bun.sh/install | bash
-
-# 克隆项目
-git clone https://github.com/your-repo/secboard.git
-cd secboard
-
-# 安装项目依赖
-bun install
+sudo useradd -r -s /usr/sbin/nologin secboard || true
+sudo mkdir -p /opt/secboard
+sudo chown "$USER":"$USER" /opt/secboard
+git clone <repo-url> /opt/secboard
+cd /opt/secboard
 ```
 
-### 2.2 运行开发服务器
+## 2. 安装和构建
 
 ```bash
-# 方式一：使用项目根目录脚本
-bun run dev:backend:bun
-
-# 方式二：直接运行后端
-cd backend
-bun run dev:bun
+bun install --frozen-lockfile
+bun run typecheck
+bun run build
 ```
 
-### 2.3 验证服务
+`dist/web` 是前端静态文件目录。
+
+## 3. 配置环境
 
 ```bash
-# 检查服务是否启动成功
-curl http://localhost:3131/health
-# 预期输出：{"ok":true,"platform":"unknown"}
+cp .env.example .env
+mkdir -p data logs
 ```
 
-## 三、生产环境部署
-
-### 3.1 构建项目
-
-```bash
-cd backend
-bun run build:bun
-```
-
-构建产物将生成在 `backend/dist/bun/server.js`。
-
-### 3.2 运行生产服务器
-
-```bash
-# 方式一：直接运行
-bun backend/dist/bun/server.js
-
-# 方式二：使用环境变量指定端口
-LANSTART_BACKEND_PORT=3131 LANSTART_BACKEND_HOST=0.0.0.0 bun backend/dist/bun/server.js
-```
-
-### 3.3 配置环境变量
-
-创建 `.env` 文件：
+生产建议：
 
 ```env
-# 后端服务配置
+NODE_ENV=production
+LANSTART_BACKEND_HOST=127.0.0.1
 LANSTART_BACKEND_PORT=3131
-LANSTART_BACKEND_HOST=0.0.0.0
-
-# 纯前端模式（可选）
-LANSTART_PURE_FRONTEND=false
+LANSTART_CAST_HOST=127.0.0.1
+LANSTART_CAST_PORT=3132
+LANSTART_DB_PATH=/opt/secboard/data/lanstart.sqlite
+LANSTART_ALLOWED_ORIGINS=https://secboard.example.com
+LANSTART_API_TOKEN=
+LANSTART_CS_BASE_URL=
+LANSTART_CS_ALLOW_HOSTS=
 ```
 
-## 四、使用 PM2 管理进程
+如果你通过公开前端访问 API，`LANSTART_API_TOKEN` 会暴露在浏览器侧，不能替代反向代理层鉴权。
 
-### 4.1 安装 PM2
+## 4. systemd
+
+编辑 [secboard.service](../secboard.service) 中的路径和 Bun 路径，确认：
+
+```ini
+WorkingDirectory=/opt/secboard
+EnvironmentFile=/opt/secboard/.env
+ExecStart=/usr/local/bin/bun run src/elysia/index.ts
+```
+
+安装服务：
 
 ```bash
-npm install -g pm2
+sudo chown -R secboard:secboard /opt/secboard/data /opt/secboard/logs
+sudo cp secboard.service /etc/systemd/system/secboard.service
+sudo systemctl daemon-reload
+sudo systemctl enable --now secboard
+sudo systemctl status secboard
+curl -fsS http://127.0.0.1:3131/health
 ```
 
-### 4.2 创建 PM2 配置文件
+## 5. Nginx
 
-创建 `ecosystem.config.js`：
-
-```javascript
-module.exports = {
-  apps: [{
-    name: 'secboard-backend',
-    script: 'backend/dist/bun/server.js',
-    interpreter: 'bun',
-    instances: 1,
-    exec_mode: 'fork',
-    env: {
-      NODE_ENV: 'production',
-      LANSTART_BACKEND_PORT: 3131,
-      LANSTART_BACKEND_HOST: '0.0.0.0'
-    },
-    log_date_format: 'YYYY-MM-DD HH:mm:ss',
-    error_file: './logs/error.log',
-    out_file: './logs/out.log',
-    pid_file: './logs/app.pid'
-  }]
-}
-```
-
-### 4.3 启动服务
+复制 [nginx.conf.example](../nginx.conf.example)，替换域名和证书路径：
 
 ```bash
-# 创建日志目录
-mkdir -p logs
-
-# 启动服务
-pm2 start ecosystem.config.js
-
-# 查看状态
-pm2 status
-
-# 查看日志
-pm2 logs secboard-backend
+sudo cp nginx.conf.example /etc/nginx/sites-available/secboard
+sudo ln -s /etc/nginx/sites-available/secboard /etc/nginx/sites-enabled/secboard
+sudo nginx -t
+sudo systemctl reload nginx
 ```
 
-## 五、Docker 部署
+关键路径：
 
-### 5.1 创建 Dockerfile
+- `/` 托管 `/opt/secboard/dist/web`
+- `/rpc`、`/kv`、`/ui`、`/ui-state`、`/events`、`/cunox`、`/img`、`/dialog`、`/cs`、`/health` 反代到 `3131`
+- `/webrtc` 反代到 `3132`
 
-```dockerfile
-FROM oven/bun:1.0.26
+## 6. Caddy
 
-WORKDIR /app
-
-COPY package.json bun.lockb ./
-RUN bun install --production
-
-COPY backend/ ./backend/
-WORKDIR /app/backend
-RUN bun run build:bun
-
-EXPOSE 3131
-
-CMD ["bun", "dist/bun/server.js"]
-```
-
-### 5.2 构建并运行
+也可以使用 [Caddyfile.example](../Caddyfile.example)：
 
 ```bash
-# 构建镜像
-docker build -t secboard-backend:latest .
-
-# 运行容器
-docker run -d \
-  --name secboard-backend \
-  -p 3131:3131 \
-  -e LANSTART_BACKEND_PORT=3131 \
-  -e LANSTART_BACKEND_HOST=0.0.0.0 \
-  secboard-backend:latest
+sudo cp Caddyfile.example /etc/caddy/Caddyfile
+sudo caddy validate --config /etc/caddy/Caddyfile
+sudo systemctl reload caddy
 ```
 
-## 六、Nginx 反向代理配置
-
-```nginx
-server {
-    listen 80;
-    server_name api.secboard.example.com;
-
-    location / {
-        proxy_pass http://localhost:3131;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        
-        # WebSocket 支持（如果需要）
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-    }
-
-    # 静态资源缓存
-    location ~* \.(js|css|png|jpg|jpeg|gif|ico)$ {
-        expires 1y;
-        add_header Cache-Control "public, immutable";
-    }
-}
-```
-
-## 七、安全建议
-
-### 7.1 防火墙配置
+## 7. 更新
 
 ```bash
-# 允许 HTTP/HTTPS 访问
-sudo ufw allow 80/tcp
-sudo ufw allow 443/tcp
-
-# 仅允许本地访问后端端口
-sudo ufw allow from 127.0.0.1 to any port 3131
+cd /opt/secboard
+git pull --ff-only
+bun install --frozen-lockfile
+bun run build
+sudo systemctl restart secboard
+curl -fsS http://127.0.0.1:3131/health
 ```
 
-### 7.2 HTTPS 配置
-
-使用 Let's Encrypt 配置 HTTPS：
+## 8. 备份
 
 ```bash
-# 安装 Certbot
-sudo apt-get update
-sudo apt-get install certbot python3-certbot-nginx
-
-# 获取证书
-sudo certbot --nginx -d api.secboard.example.com
+tar -czf /backup/secboard-$(date +%Y%m%d).tar.gz /opt/secboard/data
 ```
 
-## 八、故障排除
+## 已知限制
 
-### 8.1 端口被占用
-
-```bash
-# 检查端口占用
-lsof -i :3131
-
-# 杀死占用进程
-kill -9 <PID>
-```
-
-### 8.2 服务启动失败
-
-```bash
-# 查看 PM2 日志
-pm2 logs secboard-backend
-
-# 检查 Bun 版本
-bun --version
-
-# 检查 Node.js 版本
-node --version
-```
-
-### 8.3 数据库连接问题
-
-确保 LevelDB 数据库目录有正确的权限：
-
-```bash
-chown -R www-data:www-data ./lanstart.sqlite
-chmod -R 755 ./lanstart.sqlite
-```
-
----
-
-**文档版本**: 1.0.0  
-**最后更新**: 2026-05-05
+- SQLite 和内存事件/WebRTC 状态适合单实例部署。
+- 多实例部署必须先外置事件、WebRTC 信令和写入协调。
+- `/cs/*` 是代理能力，公网部署时必须设置 `LANSTART_CS_ALLOW_HOSTS` 或保持禁用。

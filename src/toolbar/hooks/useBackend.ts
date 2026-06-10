@@ -63,13 +63,11 @@ export function markQuitting(): void {
 
 export async function postCommand(command: string, payload?: unknown): Promise<void> {
   const api = requireLanstart()
-  console.log('[useBackend] postCommand:', command, payload)
   try {
     await api.postCommand(command, payload)
-    console.log('[useBackend] postCommand success:', command)
   } catch (e) {
-    console.error('[useBackend] postCommand failed:', command, e)
     if (command === 'quit' || suppressCommandErrors) return
+    console.error('[useBackend] postCommand failed:', command, e)
     throw e
   }
 }

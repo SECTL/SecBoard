@@ -20,7 +20,7 @@ import {
   ArrowSync20Regular,
   Dismiss20Regular,
   WeatherSunny20Regular,
-  Toolbar20Regular,
+  Toolbox20Regular,
   Grid20Regular,
   Edit20Regular,
   Whiteboard20Regular,
@@ -49,7 +49,7 @@ import {
   TextBulletList20Regular,
 } from '@fluentui/react-icons'
 
-const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
+const iconMap: Record<string, React.ComponentType<{ className?: string; style?: React.CSSProperties }>> = {
   Pin: Pin20Regular,
   PinFilled: Pin20Filled,
   Events: AlertOn20Regular,
@@ -70,7 +70,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   Restart: ArrowSync20Regular,
   Dismiss: Dismiss20Regular,
   Appearance: WeatherSunny20Regular,
-  Toolbar: Toolbar20Regular,
+  Toolbar: Toolbox20Regular,
   FeaturePanelTab: Grid20Regular,
   Annotation: Edit20Regular,
   WhiteboardTab: Whiteboard20Regular,
@@ -134,7 +134,7 @@ export {
   ArrowSync20Regular as RestartIcon,
   Dismiss20Regular as DismissIcon,
   WeatherSunny20Regular as AppearanceIcon,
-  Toolbar20Regular as ToolbarTabIcon,
+  Toolbox20Regular as ToolbarTabIcon,
   Grid20Regular as FeaturePanelTabIcon,
   Edit20Regular as AnnotationIcon,
   Whiteboard20Regular as WhiteboardTabIcon,

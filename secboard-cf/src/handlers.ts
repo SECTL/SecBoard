@@ -231,8 +231,15 @@ async function applyWhiteboardBackgroundForPage(env: Env, state: Record<string, 
 }
 
 async function syncUiState(env: Env, state: Record<string, unknown>): Promise<void> {
+  const stmts: D1PreparedStatement[] = []
   for (const [key, value] of Object.entries(state)) {
-    await putUiStateKey(env, UI_STATE_APP_WINDOW_ID, key, value)
+    const encoded = JSON.stringify(value)
+    stmts.push(env.DB.prepare(
+      'INSERT INTO ui_state (window_id, key, value) VALUES (?, ?, ?) ON CONFLICT(window_id, key) DO UPDATE SET value = excluded.value'
+    ).bind(UI_STATE_APP_WINDOW_ID, key, encoded))
+  }
+  if (stmts.length > 0) {
+    await env.DB.batch(stmts)
   }
 }
 

@@ -5,7 +5,7 @@
 **现代化的网页白板与视频展台应用**
 
 [![License](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](./LICENSE)
-[![Node](https://img.shields.io/badge/node-18%2B-green.svg)](https://nodejs.org)
+[![Node](https://img.shields.io/badge/node-22%2B-green.svg)](https://nodejs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue.svg)](https://www.typescriptlang.org/)
 
 </div>
@@ -33,7 +33,7 @@ SecBoard 是一款基于 Web 技术构建的白板与视频展台应用，专为
 | 后端服务 | Elysia |
 | 绘图引擎 | Leafer UI + Perfect Freehand |
 | 动画库 | Framer Motion |
-| 数据存储 | LevelDB |
+| 数据存储 | SQLite / IndexedDB / Cloudflare D1 + R2 |
 
 ## 项目特色
 
@@ -44,7 +44,30 @@ SecBoard 是一款基于 Web 技术构建的白板与视频展台应用，专为
 
 ## 快速开始
 
-请参阅 [运行指南](./run.md) 了解如何安装和运行项目。
+```bash
+bun install --frozen-lockfile
+bun run dev
+```
+
+或使用 pnpm：
+
+```bash
+corepack enable
+corepack prepare pnpm@10 --activate
+pnpm install --frozen-lockfile
+pnpm run dev
+```
+
+完整本地说明见 [运行指南](./run.md)。
+
+## 部署
+
+推荐从 [SecBoard 部署指南](./docs/DEPLOYMENT_GUIDE.md) 开始。当前可用路径：
+
+- Bun/Linux + Nginx/Caddy：完整生产部署。
+- Docker Compose：一条命令试运行或轻量自托管。
+- Cloudflare Workers + Pages：无服务器 Web 白板，部分桌面/投屏能力降级。
+- 纯前端静态部署：浏览器本地 IndexedDB 存储。
 
 
 

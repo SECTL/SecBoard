@@ -28,6 +28,14 @@ export interface EventItem {
   ts: number
 }
 
+export interface CunoxFileRow {
+  path: string
+  content_type: string
+  size: number
+  created_at: number
+  updated_at: number
+}
+
 export interface EventsResponse {
   items: EventItem[]
   latest: number
