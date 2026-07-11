@@ -23,7 +23,9 @@
     "cf/**/*.ts",
     "adapters/**/*.ts",
     "core/**/*.ts",
-    "index.ts"
+    "index.ts",
+    "../src/api/**/*.ts",
+    "../src/elysia/apiV1.ts"
   ],
   "exclude": ["node_modules", "dist"]
 }

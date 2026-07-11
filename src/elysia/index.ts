@@ -7,6 +7,16 @@ import { networkInterfaces } from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { deleteByPrefix, deleteValue, getValue, openLeavelDb, putValue } from '../LeavelDB'
 import { exportDbToCunoxDir, exportDbToCunoxFile, importCunoxDirToDb, importCunoxFileToDb } from '../CUNOX'
+import { createApiV1 } from './apiV1'
+import {
+  DEFAULT_SECBOARD_SETTINGS,
+  annotationKeyForMode,
+  type AnnotationBookV2,
+  type AppMode as ContractAppMode,
+  type SecBoardSettingsPatch,
+  type SecBoardSettingsV1,
+  type SystemCommandRequest
+} from '../api/contracts'
 
 /**
  * SecBoard 后端服务
@@ -36,6 +46,8 @@ import {
   EFFECTIVE_WRITING_BACKEND_UI_STATE_KEY,
   ERASER_THICKNESS_UI_STATE_KEY,
   ERASER_TYPE_UI_STATE_KEY,
+  LEAFER_SETTINGS_KV_KEY,
+  LEAFER_SETTINGS_UI_STATE_KEY,
   NOTES_PAGE_INDEX_UI_STATE_KEY,
   NOTES_PAGE_TOTAL_UI_STATE_KEY,
   NOTICE_KIND_UI_STATE_KEY,
@@ -62,6 +74,7 @@ import {
   isAppearance,
   isFileOrDataUrl,
   isHexColor,
+  isLeaferSettings,
   isWritingFramework,
   type AppMode,
   type WritingFramework
@@ -872,7 +885,7 @@ async function handleCommand(command: string, payload: unknown): Promise<Command
 
         const uiFrameworkRaw = state[WRITING_FRAMEWORK_UI_STATE_KEY]
         const uiFramework = isWritingFramework(uiFrameworkRaw) ? uiFrameworkRaw : undefined
-        const writingFramework = uiFramework ?? (await getPersistedWritingFramework()) ?? 'konva'
+        const writingFramework = uiFramework === 'leafer' ? uiFramework : 'leafer'
 
         if (!uiFramework) {
           state[WRITING_FRAMEWORK_UI_STATE_KEY] = writingFramework
@@ -891,7 +904,6 @@ async function handleCommand(command: string, payload: unknown): Promise<Command
           value: effective
         })
 
-        emitEvent('BACKEND_FORWARD', { target: effective, command: 'setTool', payload: { tool }, reason: { writingFramework } })
         return { ok: true }
       }
 
@@ -913,15 +925,9 @@ async function handleCommand(command: string, payload: unknown): Promise<Command
 
         const uiFrameworkRaw = state[WRITING_FRAMEWORK_UI_STATE_KEY]
         const uiFramework = isWritingFramework(uiFrameworkRaw) ? uiFrameworkRaw : undefined
-        const writingFramework = uiFramework ?? (await getPersistedWritingFramework()) ?? 'konva'
+        const writingFramework = uiFramework === 'leafer' ? uiFramework : 'leafer'
         const effective = writingFramework
 
-        emitEvent('BACKEND_FORWARD', {
-          target: effective,
-          command: 'setPenSettings',
-          payload: { type, color, thickness },
-          reason: { writingFramework }
-        })
         return { ok: true }
       }
 
@@ -938,10 +944,9 @@ async function handleCommand(command: string, payload: unknown): Promise<Command
         emitEvent('UI_STATE_PUT', { windowId: UI_STATE_APP_WINDOW_ID, key: ERASER_THICKNESS_UI_STATE_KEY, value: thickness })
         const uiFrameworkRaw = state[WRITING_FRAMEWORK_UI_STATE_KEY]
         const uiFramework = isWritingFramework(uiFrameworkRaw) ? uiFrameworkRaw : undefined
-        const writingFramework = uiFramework ?? (await getPersistedWritingFramework()) ?? 'konva'
+        const writingFramework = uiFramework === 'leafer' ? uiFramework : 'leafer'
         const effective = writingFramework
 
-        emitEvent('BACKEND_FORWARD', { target: effective, command: 'setEraserSettings', payload: { type, thickness }, reason: { writingFramework } })
         return { ok: true }
       }
 
@@ -952,10 +957,9 @@ async function handleCommand(command: string, payload: unknown): Promise<Command
         emitEvent('UI_STATE_PUT', { windowId: UI_STATE_APP_WINDOW_ID, key: CLEAR_PAGE_REV_UI_STATE_KEY, value: nextRev })
         const uiFrameworkRaw = state[WRITING_FRAMEWORK_UI_STATE_KEY]
         const uiFramework = isWritingFramework(uiFrameworkRaw) ? uiFrameworkRaw : undefined
-        const writingFramework = uiFramework ?? (await getPersistedWritingFramework()) ?? 'konva'
+        const writingFramework = uiFramework === 'leafer' ? uiFramework : 'leafer'
         const effective = writingFramework
 
-        emitEvent('BACKEND_FORWARD', { target: effective, command: 'clearPage', payload: {}, reason: { writingFramework } })
         return { ok: true }
       }
 
@@ -1088,8 +1092,8 @@ async function handleCommand(command: string, payload: unknown): Promise<Command
 
       if (action === 'setWritingFramework') {
         const frameworkRaw = coerceString((payload as any)?.framework)
-        const framework = isWritingFramework(frameworkRaw) ? frameworkRaw : undefined
-        if (!framework) return { ok: false, error: 'BAD_WRITING_FRAMEWORK' }
+        if (!isWritingFramework(frameworkRaw)) return { ok: false, error: 'BAD_WRITING_FRAMEWORK' }
+        const framework = 'leafer' as const
         await putValue(db, WRITING_FRAMEWORK_KV_KEY, framework)
         emitEvent('KV_PUT', { key: WRITING_FRAMEWORK_KV_KEY })
         const state = getOrInitUiState(UI_STATE_APP_WINDOW_ID)
@@ -1485,6 +1489,131 @@ stdin.on('line', (line) => {
 })
 }
 
+async function readOptionalValue<T>(key: string, fallback: T): Promise<T> {
+  try {
+    const value = await getValue(db, key)
+    return (value ?? fallback) as T
+  } catch {
+    return fallback
+  }
+}
+
+function unwrapLegacySetting(value: unknown): unknown {
+  if (!value || typeof value !== 'object' || !('value' in value)) return value
+  return (value as { value: unknown }).value
+}
+
+async function readUnifiedSettings(): Promise<SecBoardSettingsV1> {
+  const legacyFramework = await readOptionalValue<unknown>(WRITING_FRAMEWORK_KV_KEY, 'leafer')
+  if (legacyFramework !== 'leafer') {
+    await putValue(db, WRITING_FRAMEWORK_KV_KEY, 'leafer')
+    emitEvent('KV_PUT', { key: WRITING_FRAMEWORK_KV_KEY })
+  }
+
+  const rawLeafer = await readOptionalValue<unknown>(LEAFER_SETTINGS_KV_KEY, DEFAULT_SECBOARD_SETTINGS.leafer)
+  const appearanceRaw = unwrapLegacySetting(await readOptionalValue<unknown>(APPEARANCE_KV_KEY, DEFAULT_SECBOARD_SETTINGS.appearance))
+  const colorRaw = unwrapLegacySetting(await readOptionalValue<unknown>(WHITEBOARD_BG_COLOR_KV_KEY, DEFAULT_SECBOARD_SETTINGS.whiteboard.backgroundColor))
+  const imageRaw = unwrapLegacySetting(await readOptionalValue<unknown>(WHITEBOARD_BG_IMAGE_URL_KV_KEY, DEFAULT_SECBOARD_SETTINGS.whiteboard.backgroundImageUrl))
+  const opacityRaw = Number(unwrapLegacySetting(await readOptionalValue<unknown>(WHITEBOARD_BG_IMAGE_OPACITY_KV_KEY, DEFAULT_SECBOARD_SETTINGS.whiteboard.backgroundImageOpacity)))
+  const mergeRaw = unwrapLegacySetting(await readOptionalValue<unknown>(VIDEO_SHOW_MERGE_LAYERS_KV_KEY, DEFAULT_SECBOARD_SETTINGS.videoShow.mergeLayers))
+  return {
+    version: 1,
+    appearance: isAppearance(appearanceRaw) ? appearanceRaw : DEFAULT_SECBOARD_SETTINGS.appearance,
+    writingEngine: 'leafer',
+    leafer: isLeaferSettings(rawLeafer) ? { ...DEFAULT_SECBOARD_SETTINGS.leafer, ...rawLeafer } : DEFAULT_SECBOARD_SETTINGS.leafer,
+    whiteboard: {
+      backgroundColor: isHexColor(colorRaw) ? colorRaw : DEFAULT_SECBOARD_SETTINGS.whiteboard.backgroundColor,
+      backgroundImageUrl: isFileOrDataUrl(imageRaw) ? String(imageRaw) : DEFAULT_SECBOARD_SETTINGS.whiteboard.backgroundImageUrl,
+      backgroundImageOpacity: Number.isFinite(opacityRaw) ? Math.max(0, Math.min(1, opacityRaw)) : DEFAULT_SECBOARD_SETTINGS.whiteboard.backgroundImageOpacity
+    },
+    videoShow: {
+      mergeLayers: typeof mergeRaw === 'boolean' ? mergeRaw : DEFAULT_SECBOARD_SETTINGS.videoShow.mergeLayers
+    }
+  }
+}
+
+async function patchUnifiedSettings(patch: SecBoardSettingsPatch): Promise<SecBoardSettingsV1> {
+  const current = await readUnifiedSettings()
+  const next: SecBoardSettingsV1 = {
+    ...current,
+    ...patch,
+    version: 1,
+    writingEngine: 'leafer',
+    leafer: { ...current.leafer, ...patch.leafer },
+    whiteboard: { ...current.whiteboard, ...patch.whiteboard },
+    videoShow: { ...current.videoShow, ...patch.videoShow }
+  }
+
+  const writes: Array<[string, unknown]> = [
+    [APPEARANCE_KV_KEY, next.appearance],
+    [WRITING_FRAMEWORK_KV_KEY, 'leafer'],
+    [LEAFER_SETTINGS_KV_KEY, next.leafer],
+    [WHITEBOARD_BG_COLOR_KV_KEY, next.whiteboard.backgroundColor],
+    [WHITEBOARD_BG_IMAGE_URL_KV_KEY, next.whiteboard.backgroundImageUrl],
+    [WHITEBOARD_BG_IMAGE_OPACITY_KV_KEY, next.whiteboard.backgroundImageOpacity],
+    [VIDEO_SHOW_MERGE_LAYERS_KV_KEY, next.videoShow.mergeLayers]
+  ]
+  await Promise.all(writes.map(([key, value]) => putValue(db, key, value)))
+  for (const [key] of writes) emitEvent('KV_PUT', { key })
+
+  const state = getOrInitUiState(UI_STATE_APP_WINDOW_ID)
+  state[APPEARANCE_UI_STATE_KEY] = next.appearance
+  state[WRITING_FRAMEWORK_UI_STATE_KEY] = 'leafer'
+  state[EFFECTIVE_WRITING_BACKEND_UI_STATE_KEY] = 'leafer'
+  state[LEAFER_SETTINGS_UI_STATE_KEY] = Date.now()
+  state[WHITEBOARD_BG_COLOR_UI_STATE_KEY] = next.whiteboard.backgroundColor
+  state[WHITEBOARD_BG_IMAGE_URL_UI_STATE_KEY] = next.whiteboard.backgroundImageUrl
+  state[WHITEBOARD_BG_IMAGE_OPACITY_UI_STATE_KEY] = next.whiteboard.backgroundImageOpacity
+  state[VIDEO_SHOW_MERGE_LAYERS_UI_STATE_KEY] = next.videoShow.mergeLayers
+  for (const key of [
+    APPEARANCE_UI_STATE_KEY,
+    WRITING_FRAMEWORK_UI_STATE_KEY,
+    EFFECTIVE_WRITING_BACKEND_UI_STATE_KEY,
+    LEAFER_SETTINGS_UI_STATE_KEY,
+    WHITEBOARD_BG_COLOR_UI_STATE_KEY,
+    WHITEBOARD_BG_IMAGE_URL_UI_STATE_KEY,
+    WHITEBOARD_BG_IMAGE_OPACITY_UI_STATE_KEY,
+    VIDEO_SHOW_MERGE_LAYERS_UI_STATE_KEY
+  ]) emitEvent('UI_STATE_PUT', { windowId: UI_STATE_APP_WINDOW_ID, key, value: state[key] })
+
+  return next
+}
+
+async function executeUnifiedSystemCommand(input: SystemCommandRequest): Promise<unknown> {
+  switch (input.command) {
+    case 'window.quit':
+      return handleCommand('win.quit', undefined)
+    case 'window.set-annotation-input':
+      return handleCommand('win.setAnnotationInput', input.payload)
+    case 'dialog.select-image-file':
+      return useStdioRpc ? requestMainRpc('selectImageFile') : { unsupported: true }
+    case 'dialog.select-directory':
+      return useStdioRpc ? requestMainRpc('selectDirectory') : { unsupported: true }
+  }
+}
+
+const apiV1 = createApiV1({
+  readSettings: readUnifiedSettings,
+  patchSettings: patchUnifiedSettings,
+  readAnnotations: async (mode: ContractAppMode) => {
+    try {
+      return (await getValue(db, annotationKeyForMode(mode))) as AnnotationBookV2
+    } catch {
+      return null
+    }
+  },
+  writeAnnotations: async (mode: ContractAppMode, book: AnnotationBookV2) => {
+    const key = annotationKeyForMode(mode)
+    await putValue(db, key, book)
+    emitEvent('KV_PUT', { key })
+  },
+  readEvents: (since: number) => ({
+    items: events.filter((event) => event.id > since),
+    latest: events.at(-1)?.id ?? since
+  }),
+  executeSystemCommand: executeUnifiedSystemCommand
+})
+
 const api = new Elysia()
   .onRequest(({ request, set }) => {
     const origin = request.headers.get('origin') ?? ''
@@ -1501,9 +1630,32 @@ const api = new Elysia()
   .onBeforeHandle(({ request, set }) => {
     if (!isAuthorized(request)) {
       set.status = 401
+      if (new URL(request.url).pathname.startsWith('/api/v1/')) {
+        return { ok: false, error: { code: 'UNAUTHORIZED', message: 'A valid bearer token is required' } }
+      }
       return { ok: false, error: 'UNAUTHORIZED' }
     }
   })
+  .onError(({ request, code, error, set }) => {
+    if (!new URL(request.url).pathname.startsWith('/api/v1/')) return
+    const status = code === 'VALIDATION' ? 422 : 500
+    set.status = status
+    return {
+      ok: false,
+      error: {
+        code: code === 'VALIDATION' ? 'VALIDATION_FAILED' : 'INTERNAL_ERROR',
+        message: code === 'VALIDATION' ? 'Request validation failed' : 'The request could not be completed'
+      }
+    }
+  })
+  .onAfterHandle(({ request, set }) => {
+    const path = new URL(request.url).pathname
+    if (/^\/(?:kv|ui|ui-state)(?:\/|$)/.test(path) || path === '/commands' || path === '/rpc/post-command') {
+      set.headers.Deprecation = 'true'
+      set.headers.Link = '</api/v1>; rel="successor-version"'
+    }
+  })
+  .use(apiV1)
   .get('/health', () => ({ ok: true, port, pureFrontend: isPureFrontend }))
   .get('/events', ({ query }) => {
     const sinceRaw = Number((query as any)?.since ?? 0)

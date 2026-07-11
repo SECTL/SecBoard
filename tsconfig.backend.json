@@ -10,5 +10,6 @@
     "skipLibCheck": true,
     "types": ["node"]
   },
-  "include": ["src/elysia/**/*.ts", "src/LeavelDB/**/*.ts"]
+  "include": ["src/elysia/**/*.ts", "src/LeavelDB/**/*.ts"],
+  "exclude": ["src/**/__tests__/**", "src/**/*.test.ts"]
 }

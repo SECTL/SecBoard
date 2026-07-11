@@ -25,11 +25,13 @@
     "build:backend:cf": "cd backend && bun run build:cf"
   },
   "dependencies": {
+    "@elysiajs/eden": "^1.4.9",
     "@fluentui/react-icons": "^2.0.285",
     "@mantine/core": "^8.3.14",
     "@mantine/hooks": "^8.3.14",
     "better-sqlite3": "^12.10.0",
     "elysia": "^1.4.3",
+    "exact-mirror": "0.2.7",
     "fast-xml-parser": "^5.3.6",
     "framer-motion": "^12.29.2",
     "leafer-ui": "^2.0.0",

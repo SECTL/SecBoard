@@ -68,6 +68,7 @@ import type { SettingsTab } from '../types'
 import { AccentColorPicker } from './AccentColorPicker'
 import { TransitionSettings } from './TransitionSettings'
 import { useAppearanceSettings } from '../hooks/useAppearanceSettings'
+import { useSecBoardSettings } from '../hooks/useSecBoardSettings'
 import { DatabaseIcon, EventsIcon, QuitIcon, SettingsIcon } from '../../toolbar/components/ToolbarIcons'
 import './SettingsContent.css'
 
@@ -1087,9 +1088,7 @@ function FeaturePanelSettings() {
 }
 
 function AnnotationSettings() {
-  const [writingSystem, setWritingSystem] = React.useState<'leafer' | 'inkcanvas' | 'winui'>('leafer')
-  const writingSystemLabel =
-    writingSystem === 'inkcanvas' ? 'inkcanvas' : writingSystem === 'winui' ? 'winui' : 'leafer.js'
+  const unifiedSettings = useSecBoardSettings()
 
   const [leaferSettings, setLeaferSettings] = usePersistedState<LeaferSettings>(
     LEAFER_SETTINGS_KV_KEY,
@@ -1209,6 +1208,7 @@ function AnnotationSettings() {
 
   const persistLeaferSettings = (next: LeaferSettings) => {
     setLeaferSettings(next)
+    void unifiedSettings.patch({ leafer: next })
     void (async () => {
       try {
         await putKv(LEAFER_SETTINGS_KV_KEY, next)
@@ -1230,23 +1230,22 @@ function AnnotationSettings() {
 
       <div className="settingsFormCard">
         <div className="settingsFormTitle">书写系统</div>
-        <div className="settingsFormDescription">切换不同书写系统的启用与设置（占位）</div>
+        <div className="settingsFormDescription">书写采样、渲染和历史记录由前端 Leafer 引擎负责</div>
         <Select
-          value={writingSystem}
-          data={[
-            { value: 'leafer', label: 'leafer.js' },
-            { value: 'inkcanvas', label: 'inkcanvas' },
-            { value: 'winui', label: 'winui' }
-          ]}
+          value="leafer"
+          data={[{ value: 'leafer', label: 'Leafer.js（前端）' }]}
           allowDeselect={false}
-          onChange={(value) => {
-            if (value === 'leafer' || value === 'inkcanvas' || value === 'winui') setWritingSystem(value)
-          }}
+          onChange={() => undefined}
         />
       </div>
 
-      {writingSystem === 'leafer' ? (
-        <div className="settingsFormCard">
+      <div className={`settingsSaveStatus settingsSaveStatus--${unifiedSettings.status}`} role="status">
+        {unifiedSettings.status === 'saving' ? '正在同步批注设置' : null}
+        {unifiedSettings.status === 'saved' ? '批注设置已保存' : null}
+        {unifiedSettings.status === 'error' ? '批注设置同步失败，本地设置已保留' : null}
+      </div>
+
+      <div className="settingsFormCard">
           <div className="settingsFormTitle">Leafer.js</div>
           <div className="settingsFormDescription">配置 Leafer.js 书写体验</div>
           <div className="settingsFormGroup">
@@ -1340,18 +1339,7 @@ function AnnotationSettings() {
               size="md"
             />
           </div>
-        </div>
-      ) : (
-        <div className="settingsContentPlaceholder">
-          <div className="settingsContentPlaceholderIcon">
-            <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <path d="M12 19l7-7 3 3-7 7-3-3z" />
-              <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z" />
-            </svg>
-          </div>
-          <p className="settingsContentPlaceholderText">{writingSystemLabel} 的启用与设置即将推出</p>
-        </div>
-      )}
+      </div>
     </div>
   )
 }

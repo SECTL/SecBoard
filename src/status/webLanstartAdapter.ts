@@ -44,6 +44,7 @@ import {
   type AppMode,
   type WritingFramework
 } from './keys'
+import { commandToWritingAction } from '../writing/actions'
 
 function getApiBaseUrl(): string {
   const envBase = String((import.meta as any)?.env?.VITE_LANSTART_API_BASE ?? '').trim()
@@ -610,7 +611,7 @@ async function persistPageStateForMode(args: {
   ])
 }
 
-async function handlePureFrontendCommand(args: {
+export async function dispatchFrontendCommand(args: {
   command: string
   payload: unknown
   storage: FrontendIndexedDBStorage
@@ -814,8 +815,8 @@ async function handlePureFrontendCommand(args: {
       } else if (action === 'setWritingFramework') {
         const frameworkRaw = coerceString((payload as any)?.framework)
         if (isWritingFramework(frameworkRaw)) {
-          await putKvAndEmit(storage, eventBus, WRITING_FRAMEWORK_KV_KEY, frameworkRaw)
-          putStateValue(state, patches, WRITING_FRAMEWORK_UI_STATE_KEY, frameworkRaw)
+          await putKvAndEmit(storage, eventBus, WRITING_FRAMEWORK_KV_KEY, 'leafer')
+          putStateValue(state, patches, WRITING_FRAMEWORK_UI_STATE_KEY, 'leafer')
         }
       } else if (action === 'openSettingsWindow') {
         putStateValue(state, patches, WEB_SETTINGS_VISIBLE_UI_STATE_KEY, true)
@@ -866,7 +867,7 @@ function createPureFrontendAdapter(): NonNullable<Window['lanstart']> {
   return {
     postCommand: async (command: string, payload?: unknown) => {
       eventBus.emit('COMMAND', { command, payload })
-      await handlePureFrontendCommand({ command, payload, storage, eventBus })
+    await dispatchFrontendCommand({ command, payload, storage, eventBus })
       return null
     },
     getEvents: async (since: number) => {
@@ -957,16 +958,46 @@ export function ensureWebLanstartAdapter(): void {
   const fallbackEventBus = getFrontendEventBus()
   const fallbackStorage = getFrontendStorage()
   let zoomLevel = 0
+  const annotationSyncTimers = new Map<string, number>()
+
+  const syncKvToServer = (key: string, value: unknown) => {
+    const annotationPrefix = 'annotation-notes-'
+    const mode = key.startsWith(annotationPrefix) ? key.slice(annotationPrefix.length) : ''
+    const path = mode === 'toolbar' || mode === 'whiteboard' || mode === 'video-show'
+      ? `/api/v1/annotations/${encodeURIComponent(mode)}`
+      : `/kv/${encodeURIComponent(key)}`
+    const sync = async () => {
+      try {
+        await fetchApiWithTimeout(`${apiBase}${path}`, {
+          method: 'PUT',
+          headers: { 'content-type': 'application/json', ...authHeaders },
+          body: JSON.stringify(mode ? value : { value })
+        })
+      } catch {
+        // IndexedDB remains authoritative until the next local write retries sync.
+      }
+    }
+    const existing = annotationSyncTimers.get(key)
+    if (existing !== undefined) window.clearTimeout(existing)
+    if (mode) {
+      annotationSyncTimers.set(key, window.setTimeout(() => {
+        annotationSyncTimers.delete(key)
+        void sync()
+      }, 300))
+    } else {
+      void sync()
+    }
+  }
 
   const runFallbackCommand = async (command: string, payload?: unknown) => {
     fallbackEventBus.emit('COMMAND', { command, payload })
-    await handlePureFrontendCommand({ command, payload, storage: fallbackStorage, eventBus: fallbackEventBus })
+    await dispatchFrontendCommand({ command, payload, storage: fallbackStorage, eventBus: fallbackEventBus })
     return null
   }
 
   const api: NonNullable<Window['lanstart']> = {
     postCommand: async (command: string, payload?: unknown) => {
-      if (isLocalFirstCommand(command)) {
+      if (commandToWritingAction(command, payload) || isLocalFirstCommand(command)) {
         return runFallbackCommand(command, payload)
       }
       try {
@@ -997,28 +1028,24 @@ export function ensureWebLanstartAdapter(): void {
     },
     getKv: async (key: string) => {
       try {
+        return await fallbackStorage.getKv(key)
+      } catch {
+        // Hydrate the local cache from the server on first access.
+      }
+      try {
         const res = await fetchApiWithTimeout(`${apiBase}/kv/${encodeURIComponent(key)}`, { method: 'GET', headers: { ...authHeaders } })
         const body = (await parseApiResponse(res)) as any
         if (!res.ok || body?.ok !== true) throw new Error(String(body?.error ?? 'kv_not_found'))
+        await fallbackStorage.putKv(key, body?.value)
         return body?.value
-      } catch {
-        return fallbackStorage.getKv(key)
+      } catch (reason) {
+        throw reason
       }
     },
     putKv: async (key: string, value: unknown) => {
-      try {
-        const res = await fetchApiWithTimeout(`${apiBase}/kv/${encodeURIComponent(key)}`, {
-          method: 'PUT',
-          headers: { 'content-type': 'application/json', ...authHeaders },
-          body: JSON.stringify({ value })
-        })
-        const body = (await parseApiResponse(res)) as any
-        if (!res.ok || body?.ok !== true) throw new Error(String(body?.error ?? 'kv_put_failed'))
-        return null
-      } catch {
-        await fallbackStorage.putKv(key, value)
-        fallbackEventBus.emit('KV_PUT', { key })
-      }
+      await fallbackStorage.putKv(key, value)
+      fallbackEventBus.emit('KV_PUT', { key })
+      syncKvToServer(key, value)
       return null
     },
     getUiState: async (windowId: string) => {

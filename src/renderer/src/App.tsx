@@ -417,7 +417,7 @@ function WebAppRouter() {
   const bus = useUiStateBus(UI_STATE_APP_WINDOW_ID)
   const settingsVisible = coerceBool(bus.state[WEB_SETTINGS_VISIBLE_UI_STATE_KEY])
   const [route, setRoute] = useState<WebRoute>(() => routeFromPath(window.location.pathname))
-  const skipFirstSettingsCloseRef = useRef(route === 'settings' && !settingsVisible)
+  const settingsStateOwnsRouteRef = useRef(false)
 
   const navigateToRoute = useCallback((nextRoute: WebRoute, mode: 'push' | 'replace' = 'push') => {
     const nextPath = pathFromRoute(nextRoute)
@@ -444,23 +444,13 @@ function WebAppRouter() {
   }, [])
 
   useEffect(() => {
-    if (route === 'settings' && !settingsVisible) {
-      postCommand('app.openSettingsWindow').catch(() => undefined)
-    }
-    // only for initial direct /settings load
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  useEffect(() => {
     if (settingsVisible) {
+      settingsStateOwnsRouteRef.current = true
       if (route !== 'settings') navigateToRoute('settings', 'push')
       return
     }
-    if (route === 'settings') {
-      if (skipFirstSettingsCloseRef.current) {
-        skipFirstSettingsCloseRef.current = false
-        return
-      }
+    if (route === 'settings' && settingsStateOwnsRouteRef.current) {
+      settingsStateOwnsRouteRef.current = false
       navigateToRoute('workspace', 'replace')
     }
   }, [navigateToRoute, route, settingsVisible])

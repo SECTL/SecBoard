@@ -16,6 +16,21 @@
   background: color-mix(in srgb, var(--ls-surface-bg) 96%, transparent);
 }
 
+.webSettingsSaveState {
+  margin-left: auto;
+  min-height: 20px;
+  color: color-mix(in srgb, currentColor 68%, transparent);
+  font-size: 13px;
+}
+
+.webSettingsSaveState--error button {
+  border: 0;
+  background: transparent;
+  color: #c42b1c;
+  cursor: pointer;
+  font: inherit;
+}
+
 .webSettingsBackButton {
   height: 34px;
   display: inline-flex;
