@@ -81,27 +81,6 @@
   transform-origin: top left;
 }
 
-.webSubwindowClose {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  z-index: 40;
-  width: 24px;
-  height: 24px;
-  border-radius: 8px;
-  border: 1px solid var(--ls-btn-danger-border);
-  background: var(--ls-btn-danger-bg);
-  color: var(--ls-btn-danger-fg);
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.webSubwindowClose:hover {
-  background: var(--ls-btn-danger-bg-hover);
-}
-
 .webThumbnailsAnchor {
   position: absolute;
   pointer-events: auto;

@@ -249,6 +249,15 @@ function WebWorkspace() {
     return () => observer.disconnect()
   }, [activeSubwindow])
 
+  useEffect(() => {
+    if (!activeSubwindow) return
+    const onClose = () => {
+      postCommand('toggle-subwindow', { kind: activeSubwindow, placement: subwindowPlacement }).catch(() => undefined)
+    }
+    window.addEventListener('secboard:whiteboard-touch', onClose)
+    return () => window.removeEventListener('secboard:whiteboard-touch', onClose)
+  }, [activeSubwindow, subwindowPlacement])
+
   useLayoutEffect(() => {
     const node = pageDockRef.current
     if (!node) return
@@ -382,16 +391,6 @@ function WebWorkspace() {
             className={effectiveSubwindowPlacement === 'top' ? 'webSubwindowDock webSubwindowDock--top' : 'webSubwindowDock webSubwindowDock--bottom'}
             style={subwindowStyle}
           >
-            <button
-              type="button"
-              className="webSubwindowClose"
-              title="Close"
-              onClick={() => {
-                postCommand('toggle-subwindow', { kind: activeSubwindow, placement: subwindowPlacement }).catch(() => undefined)
-              }}
-            >
-              x
-            </button>
             {renderSubwindow(activeSubwindow)}
           </section>
         ) : null}

@@ -30,26 +30,24 @@ const PRESET_COLORS = [
   '#FFFFFF', // 白色
 ]
 
-// 倾斜的彩色铅笔/钢笔图标（更符合草图效果）
+// 水平放置的铅笔图标
 function WritingPenIcon({ color = '#333' }: { color?: string }) {
   return (
     <svg viewBox="0 0 60 36" width="60" height="36">
-      <g transform="rotate(-25, 30, 18)">
-        {/* 铅笔尖 - 木质削尖部分 */}
-        <path d="M2 18 L12 12 L12 24 Z" fill={color} />
-        {/* 木质笔杆 */}
-        <rect x="12" y="11" width="8" height="14" fill="#DEB887" />
-        {/* 金属环 - 连接木质和笔杆 */}
-        <rect x="20" y="10" width="4" height="16" fill="#C0C0C0" />
-        {/* 彩色笔杆主体 */}
-        <rect x="24" y="9" width="22" height="18" rx="2" fill={color} />
-        {/* 笔杆高光 */}
-        <rect x="26" y="11" width="18" height="5" rx="1" fill="rgba(255,255,255,0.4)" />
-        {/* 笔尾橡皮 */}
-        <rect x="46" y="10" width="8" height="16" rx="3" fill="#FF6B6B" />
-        {/* 橡皮金属箍 */}
-        <rect x="46" y="13" width="2" height="10" fill="#C0C0C0" />
-      </g>
+      {/* 铅笔尖 - 木质削尖部分 */}
+      <path d="M2 18 L10 13 L10 23 Z" fill={color} />
+      {/* 木质笔杆 */}
+      <rect x="10" y="12" width="6" height="12" fill="#DEB887" />
+      {/* 金属环 */}
+      <rect x="16" y="11" width="3" height="14" fill="#C0C0C0" />
+      {/* 彩色笔杆主体 */}
+      <rect x="19" y="10" width="26" height="16" rx="2" fill={color} />
+      {/* 笔杆高光 */}
+      <rect x="21" y="12" width="22" height="5" rx="1" fill="rgba(255,255,255,0.4)" />
+      {/* 笔尾橡皮 */}
+      <rect x="45" y="11" width="7" height="14" rx="3" fill="#FF6B6B" />
+      {/* 橡皮金属箍 */}
+      <rect x="45" y="13" width="2" height="10" fill="#C0C0C0" />
     </svg>
   )
 }
@@ -57,21 +55,19 @@ function WritingPenIcon({ color = '#333' }: { color?: string }) {
 function HighlighterIcon({ color = '#FFEB3B' }: { color?: string }) {
   return (
     <svg viewBox="0 0 60 36" width="60" height="36">
-      <g transform="rotate(-25, 30, 18)">
-        {/* 荧光笔斜切笔尖 */}
-        <path d="M4 18 L14 10 L14 26 Z" fill={color} />
-        {/* 笔尖深色部分 */}
-        <path d="M4 18 L8 15 L8 21 Z" fill="rgba(0,0,0,0.2)" />
-        {/* 粗笔杆 */}
-        <rect x="14" y="8" width="30" height="20" rx="3" fill={color} />
-        {/* 笔帽夹 */}
-        <rect x="30" y="5" width="4" height="8" rx="1" fill="rgba(0,0,0,0.3)" />
-        {/* 高光 */}
-        <rect x="16" y="10" width="26" height="6" rx="2" fill="rgba(255,255,255,0.5)" />
-        {/* 笔尾 */}
-        <rect x="44" y="10" width="10" height="16" rx="4" fill={color} />
-        <rect x="44" y="10" width="10" height="16" rx="4" fill="rgba(0,0,0,0.1)" />
-      </g>
+      {/* 荧光笔斜切笔尖 */}
+      <path d="M3 18 L12 9 L12 27 Z" fill={color} />
+      {/* 笔尖深色部分 */}
+      <path d="M3 18 L7 14 L7 22 Z" fill="rgba(0,0,0,0.2)" />
+      {/* 粗笔杆 */}
+      <rect x="12" y="8" width="32" height="20" rx="3" fill={color} />
+      {/* 笔帽夹 */}
+      <rect x="28" y="5" width="4" height="7" rx="1" fill="rgba(0,0,0,0.3)" />
+      {/* 高光 */}
+      <rect x="14" y="10" width="28" height="6" rx="2" fill="rgba(255,255,255,0.5)" />
+      {/* 笔尾 */}
+      <rect x="44" y="9" width="8" height="18" rx="4" fill={color} />
+      <rect x="44" y="9" width="8" height="18" rx="4" fill="rgba(0,0,0,0.1)" />
     </svg>
   )
 }
@@ -79,22 +75,20 @@ function HighlighterIcon({ color = '#FFEB3B' }: { color?: string }) {
 function LaserPenIcon({ color = '#2196F3' }: { color?: string }) {
   return (
     <svg viewBox="0 0 60 36" width="60" height="36">
-      <g transform="rotate(-25, 30, 18)">
-        {/* 激光点 - 发光效果 */}
-        <circle cx="6" cy="18" r="4" fill="#FF4444" />
-        <circle cx="6" cy="18" r="6" fill="rgba(255,68,68,0.3)" />
-        {/* 金属笔尖 */}
-        <rect x="10" y="14" width="6" height="8" fill="#C0C0C0" />
-        {/* 细长笔杆 */}
-        <rect x="16" y="12" width="28" height="12" rx="2" fill={color} />
-        {/* 红色按钮 */}
-        <rect x="24" y="8" width="10" height="5" rx="2" fill="#FF4444" />
-        {/* 高光 */}
-        <rect x="18" y="14" width="24" height="4" rx="1" fill="rgba(255,255,255,0.4)" />
-        {/* 笔尾挂绳孔 */}
-        <rect x="44" y="14" width="8" height="8" rx="4" fill="#333" />
-        <rect x="46" y="16" width="4" height="4" rx="2" fill={color} />
-      </g>
+      {/* 激光点 - 发光效果 */}
+      <circle cx="5" cy="18" r="3.5" fill="#FF4444" />
+      <circle cx="5" cy="18" r="5.5" fill="rgba(255,68,68,0.3)" />
+      {/* 金属笔尖 */}
+      <rect x="9" y="14" width="5" height="8" fill="#C0C0C0" />
+      {/* 细长笔杆 */}
+      <rect x="14" y="12" width="30" height="12" rx="2" fill={color} />
+      {/* 红色按钮 */}
+      <rect x="22" y="8" width="10" height="5" rx="2" fill="#FF4444" />
+      {/* 高光 */}
+      <rect x="16" y="14" width="26" height="4" rx="1" fill="rgba(255,255,255,0.4)" />
+      {/* 笔尾挂绳孔 */}
+      <rect x="44" y="14" width="8" height="8" rx="4" fill="#333" />
+      <rect x="46" y="16" width="4" height="4" rx="2" fill={color} />
     </svg>
   )
 }
@@ -392,7 +386,7 @@ export function PenSubmenu(props: { kind: string }) {
                     type={pen.type}
                     label={pen.label}
                     icon={pen.icon}
-                    iconColor={pen.type === 'writing' ? selectedColor : pen.defaultColor}
+                    iconColor={selectedColor}
                     isActive={selectedPenType === pen.type}
                     onClick={() => handlePenTypeChange(pen.type)}
                   />

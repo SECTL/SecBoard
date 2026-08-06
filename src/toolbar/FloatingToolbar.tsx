@@ -342,7 +342,7 @@ function FloatingToolbarInner() {
   useZoomOnWheel()
 
   useEffect(() => {
-    postCommand('app.setTool', { tool: 'mouse' }).catch(() => undefined)
+    postCommand('app.setTool', { tool: 'pen' }).catch(() => undefined)
   }, [])
 
   useEffect(() => {
@@ -433,6 +433,7 @@ function FloatingToolbarInner() {
       void postCommand('toggle-subwindow', { kind: 'pen', placement: 'bottom' })
     } else {
       setState({ ...state, tool: 'pen' })
+      if (tool === 'eraser') void postCommand('toggle-subwindow', { kind: 'eraser', placement: 'bottom' })
     }
   }
 
@@ -443,6 +444,7 @@ function FloatingToolbarInner() {
       void postCommand('toggle-subwindow', { kind: 'eraser', placement: 'bottom' })
     } else {
       setState({ ...state, tool: 'eraser' })
+      if (tool === 'pen') void postCommand('toggle-subwindow', { kind: 'pen', placement: 'bottom' })
     }
   }
 
@@ -450,6 +452,8 @@ function FloatingToolbarInner() {
     setState({ ...state, tool: 'mouse' })
     void putUiStateKey(UI_STATE_APP_WINDOW_ID, TOOL_UI_STATE_KEY, 'mouse')
     void postCommand('app.setTool', { tool: 'mouse' })
+    if (tool === 'pen') void postCommand('toggle-subwindow', { kind: 'pen', placement: 'bottom' })
+    else if (tool === 'eraser') void postCommand('toggle-subwindow', { kind: 'eraser', placement: 'bottom' })
   }
 
   const handleUndo = () => {
@@ -798,8 +802,8 @@ export function FloatingToolbarHandleApp(props?: {
               fill="currentColor"
               d={
                 dragging
-                  ? 'M7.75 17.25a.75.75 0 0 0 1.5 0V2.75a.75.75 0 0 0-1.5 0zm3 0a.75.75 0 0 0 1.5 0V2.75a.75.75 0 0 0-1.5 0z'
-                  : 'M8 17.5a.5.5 0 0 0 1 0v-15a.5.5 0 0 0-1 0zm3 0a.5.5 0 0 0 1 0v-15a.5.5 0 0 0-1 0z'
+                  ? 'M8.25 17.25a.75.75 0 0 0 1.5 0V2.75a.75.75 0 0 0-1.5 0zm2 0a.75.75 0 0 0 1.5 0V2.75a.75.75 0 0 0-1.5 0z'
+                  : 'M8.5 17.5a.5.5 0 0 0 1 0v-15a.5.5 0 0 0-1 0zm2 0a.5.5 0 0 0 1 0v-15a.5.5 0 0 0-1 0z'
               }
             />
           </svg>
