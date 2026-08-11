@@ -1,6 +1,0 @@
-export { EventsMenu } from './EventsMenu'
-export { ClockMenu } from './ClockMenu'
-export { FeaturePanelMenu } from './FeaturePanelMenu'
-export { PenSubmenu } from './PenSubmenu'
-export { EraserSubmenu } from './EraserSubmenu'
-export { SettingsMenu } from './SettingsMenu'

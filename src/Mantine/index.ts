@@ -1,2 +1,0 @@
-export { LanStartMantineProvider } from './LanStartMantineProvider'
-
